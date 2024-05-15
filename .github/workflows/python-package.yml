@@ -1,0 +1,53 @@
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install
+      run: |
+        pip install .
+    - name: Test with pytest
+      run: |
+        # do tests here
+        echo
+    - name: Pyflakes
+      run: |
+        pip install --upgrade pyflakes
+        pyflakes MDRefine
+    - name: Pylint
+      run: |
+        pip install --upgrade  pylint
+        pylint -E MDRefine
+    - name: Flake8
+      run: |
+        pip install --upgrade flake8
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 bussilab bin --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics | tee flake8_report.txt
+    - name: Deploy PyPI
+      if: ${{ matrix.python-version == '3.11' && startsWith(github.ref, 'refs/tags/') }}
+      env:
+        MDREFINE_PYPI: ${{ secrets.MDREFINE_PYPI }}
+      run: |
+        pip install twine
+        python setup.py sdist
+        python -m twine upload -u __token__ -p "$MDREFINE_PYPI" dist/MDRefine-*.tar.gz
+
