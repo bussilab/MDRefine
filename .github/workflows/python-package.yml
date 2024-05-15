@@ -26,8 +26,8 @@ jobs:
         pip install .
     - name: Test with pytest
       run: |
-        # do tests here
-        echo
+        pip install pytest
+        pytest -v
     - name: Pyflakes
       run: |
         pip install --upgrade pyflakes
