@@ -8,7 +8,9 @@ from ._version import __version__
 # required packages:
 _required_ = [
     'numpy',
-    'pandas'
+    'pandas',
+    'jax',
+    'jaxlib'
 ]
 
 def get_version():
