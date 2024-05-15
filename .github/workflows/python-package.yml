@@ -8,11 +8,12 @@ on:
 jobs:
   python:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
+        os: [ubuntu-latest, macos-12, macos-14]
 
     steps:
     - uses: actions/checkout@v4
@@ -43,7 +44,7 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 bussilab bin --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics | tee flake8_report.txt
     - name: Deploy PyPI
-      if: ${{ matrix.python-version == '3.11' && startsWith(github.ref, 'refs/tags/') }}
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' && startsWith(github.ref, 'refs/tags/') }}
       env:
         MDREFINE_PYPI: ${{ secrets.MDREFINE_PYPI }}
       run: |
