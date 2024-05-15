@@ -11,5 +11,8 @@ _required_ = [
     'pandas'
 ]
 
+def get_version():
+    return __version__
+
 
 
