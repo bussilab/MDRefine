@@ -59,3 +59,59 @@ jobs:
         python setup.py sdist
         python -m twine upload -u __token__ -p "$MDREFINE_PYPI" dist/MDRefine-*.tar.gz
 
+
+  conda:
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-12, macos-14]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install conda
+      run: |
+        curl -LO https://raw.githubusercontent.com/GiovanniBussi/conda-ci/master/conda-ci
+        source ./conda-ci install
+        source ./conda-ci install-conda-build
+    - name: Build
+      run: |
+        source activate base
+        python make_conda_recipe.py
+        export CPU_COUNT=2
+        conda-build -c conda-forge conda
+        rm -fr MDRefine # make sure this is not imported by mistake in tests
+    - name: Test 3.9
+      run: |
+        source activate base
+        conda create -n py39 -c conda-forge -c local python=3.9 MDRefine pytest
+        source activate py39
+        pytest -v
+    - name: Test 3.10
+      run: |
+        source activate base
+        conda create -n py310 -c conda-forge -c local python=3.10 MDRefine pytest
+        source activate py310
+        pytest -v
+    - name: Test 3.11
+      run: |
+        source activate base
+        conda create -n py311 -c conda-forge -c local python=3.11 MDRefine pytest
+        source activate py311
+        pytest -v
+    - name: Test 3.12
+      run: |
+        source activate base
+        conda create -n py312 -c conda-forge -c local python=3.12 MDRefine pytest
+        source activate py312
+        pytest -v
+    - name: Deploy conda
+      if: ${{ matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/') }}
+      #env:
+      #  CONDA_UPLOAD_TOKEN: ${{ secrets.CONDA_UPLOAD_TOKEN }}
+      run: |
+        #TODO
+        #source activate base
+        #anaconda -t $CONDA_UPLOAD_TOKEN upload -u bussilab -l main $CONDA_PREFIX/conda-bld/*/py-bussilab*.tar.bz2 --force
+
