@@ -583,7 +583,7 @@ def compute_D_KL(weights_P, correction_ff, temperature, logZ_P):#, derivatives_f
     - for alchemical calculations with charges, pars[:-1] are the charges and pars[-1] is V_eta,
       you have constraint on charges, and there are 3 pars[4] charges:
         - 'constraint 1';
-        - 'constraint 2' (with l2 regularization also on V_\eta). '''
+        - 'constraint 2' (with l2 regularization also on V_eta). '''
 
 def l2_regularization(pars, choice = 'plain l2'):
 
@@ -1324,8 +1324,7 @@ it returns:
 - the splitting into **data_train** and **data_test**; data_test refers to: trained observables and non-trained frames (where non-specified "new"); non-trained (new) observables and non-trained/all frames (where specified "new");
 - the observables and frames (or replicas) selected for the test set **test_obs** and **test_frames** (replicas **test_rep** rather than frames if pos_replicas is not None).
 
-MISSING: the case with $\Delta\Delta G$ as observables (alchemical calculations).
-CHECK: case with pos_replicas. '''
+'''
 
 def select_traintest(data, *, test_frames_size = 0.2, test_obs_size = 0.2, random_state = None, test_frames = None, test_obs = None, if_all_frames = False, pos_replicas = None):
     
@@ -1625,7 +1624,7 @@ def validation(pars_ff_fm, lambdas, data_test, *, regularization = None, alpha =
 
     if not np.isinf(beta):
         names_ff_pars = data_test['global'].names_ff_pars
-        pars_ff = pars_ff_fm[:len(names_ff_pars)]
+        # pars_ff = pars_ff_fm[:len(names_ff_pars)]
     
     if not np.isinf(gamma): pars_fm = pars_ff_fm[len(names_ff_pars):]
     if names_ff_pars == []: del names_ff_pars
@@ -2231,8 +2230,8 @@ def MDRefinement(infos, *, regularization = None, stride = 1, starting_alpha = n
         i += 1
     else: optimal_beta = starting_beta
     if not np.isinf(starting_gamma):
-        s = s + 'gamma: ' + str(optimal_gamma)
         optimal_gamma = 10**optimal_log10_hyperpars[i]
+        s = s + 'gamma: ' + str(optimal_gamma)
         # i += 1
     else: optimal_gamma = starting_gamma
 
