@@ -1,5 +1,5 @@
 package:
-  name: MDRefine
+  name: mdrefine
   version: __VERSION__
 
 source:
