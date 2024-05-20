@@ -1,0 +1,39 @@
+package:
+  name: MDRefine
+  version: __VERSION__
+
+source:
+  path: ..
+
+build:
+  number: 0
+  noarch: python
+  script: "{{ PYTHON }} -m pip install . --no-deps -vv"
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+  run:
+    __REQUIRED__
+    - python >=3.9
+
+test:
+  imports:
+    - MDRefine
+  #commands:
+  #  - bussilab check --import
+
+about:
+  home: https://github.com/bussilab/MDRefine
+  license: LGPL-2.1
+  license_family: GPL
+  summary: '__SUMMARY__'
+  description: |
+    __DESCRIPTION__
+  #doc_url: https://bussilab.github.io/doc-py-bussilab
+  #dev_url: https://github.com/bussilab/py-bussilab
+
+extra:
+  recipe-maintainers:
+    - GiovanniBussi
