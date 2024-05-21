@@ -1,8 +1,10 @@
 /build
 /dist
 __pycache__
+.ipynb_checkpoints
 *.pyc
 *.egg-info
 /tmp*
 .DS_Store
 /venv
+/doc
