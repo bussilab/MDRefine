@@ -21,7 +21,7 @@ import numpy.random as random
 import jax
 import numpy  # L-BFGS-B requires numpy arrays rather than jax.numpy for the gradient of gamma_function
 import jax.numpy as np
-from jax.config import config
+from jax import config
 config.update("jax_enable_x64", True)
 #   import jax.random as random
 # else:
