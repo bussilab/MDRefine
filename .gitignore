@@ -5,4 +5,4 @@ __pycache__
 *.egg-info
 /tmp*
 .DS_Store
-
+/venv
