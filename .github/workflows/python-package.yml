@@ -49,6 +49,23 @@ jobs:
       with:
         path: flake8_report.txt
         name: flake8_report
+    - name: Doc
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
+      run: |
+        pip install --upgrade pdoc3 jupyter nbconvert
+        pdoc3 -f --html -o doc/ MDRefine
+        ( cd Examples && ./render.sh )
+        mkdir doc/examples
+        cp Examples/*html doc/examples/
+        ( sudo apt-get install tree && cd doc/examples && tree -H '.' -L 1 --noreport --charset utf-8 > index.html )
+        ( sudo apt-get install pandoc texlive-xetex && pdoc3 -f --pdf MDRefine > MDRefine.md && pandoc --metadata=title:"MDRefine Documentation" --from=markdown+abbreviations+tex_math_single_backslash --pdf-engine=xelatex --toc --toc-depth=4 --output=doc/MDRefine.pdf MDRefine.md )
+        tar czf doc.tgz doc/
+    - name: Upload doc to artifact
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
+      uses: actions/upload-artifact@v3
+      with:
+        path: doc.tgz
+        name: doc
 
     - name: Deploy PyPI
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' && startsWith(github.ref, 'refs/tags/') }}
