@@ -1877,7 +1877,7 @@ def validation(
         Validation_values.avg_new_obs[name_sys] = out[0]
 
         if not hasattr(data_test, 'forward_qs_trained'):
-            Validation_values.chi2_new_obs[name_sys] = out[2]
+            Validation_values.chi2_new_obs[name_sys] = out[1]
 
     # then, if you want to include also trained frames for validating observables:
 
@@ -1946,7 +1946,7 @@ def validation(
 """ Use implicit function theorem to compute the derivatives of the pars_ff_fm and lambdas w.r.t. hyper parameters. """
 
 
-# %% D1. compute_hyper-derivatives
+# %% D1. compute_hyperderivatives
 
 
 """
@@ -1990,8 +1990,18 @@ def compute_hyperderivatives(
         for i_sys, name_sys in enumerate(system_names):
 
             my_lambdas = lambdas[js[i_sys][0]:js[i_sys][-1]]
-            g = np.hstack([data[name_sys].g[k] for k in data[name_sys].n_experiments])
-            gexp = np.vstack([data[name_sys].gexp[k] for k in data[name_sys].n_experiments])
+
+            indices = np.nonzero(my_lambdas)[0]
+
+            # refs = []
+            # for name in data[name_sys].n_experiments.keys():
+            #     refs.extend(data[name_sys].ref[name]*data[name_sys].n_experiments[name])
+
+            # indices = np.array([k for k in indices if not refs[k] == '='])  # indices of lambdas on constraints
+
+            my_lambdas = my_lambdas[indices]
+            g = np.hstack([data[name_sys].g[k] for k in data[name_sys].n_experiments])[:, indices]
+            gexp = np.vstack([data[name_sys].gexp[k] for k in data[name_sys].n_experiments])[indices]
 
             my_args = (my_lambdas, g, gexp, data[name_sys].weights, alpha)
             Hess_inv = np.linalg.inv(derivatives_funs.d2gamma_dlambdas2(*my_args))
@@ -2261,11 +2271,18 @@ def compute_hypergradient(
     """ compute derivatives of optimal pars w.r.t. hyper parameters """
     if not np.isinf(log10_alpha):
         lambdas_vec = []
+        # refs = []
 
         for name_sys in system_names:
             for name in data_train[name_sys].n_experiments.keys():
                 lambdas_vec.append(lambdas[name_sys][name])
+                # refs.extend(data_train[name_sys].ref[name]*data_train[name_sys].n_experiments[name])
+
         lambdas_vec = np.concatenate((lambdas_vec))
+
+        indices = np.nonzero(lambdas_vec)[0]
+        # indices = np.array([k for k in indices if not refs[k] == '='])  # indices of lambdas on constraints
+
     else:
         lambdas_vec = None
 
@@ -2295,6 +2312,7 @@ def compute_hypergradient(
         dchi2_dpars = None
     if not np.isinf(log10_alpha):
         dchi2_dlambdas = derivatives_funs.dchi2_dlambdas(*my_args)
+        dchi2_dlambdas = dchi2_dlambdas[indices]
     else:
         dchi2_dlambdas = None
 
@@ -2422,6 +2440,7 @@ def hyper_function(
         out = compute_hypergradient(
             pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
             which_set, data_test, derivatives_funs)
+
         chi2.append(out[0])
         gradient.append(out[1])
 
@@ -2438,8 +2457,8 @@ def hyper_function(
 
     tot_gradient = np.array(tot_gradient)
 
-    # print('tot chi2: ', tot_chi2)
-    # print('tot gradient: ', tot_gradient)
+    print('tot chi2: ', tot_chi2)
+    print('tot gradient: ', tot_gradient)
 
     global hyper_intermediate
     hyper_intermediate.tot_chi2.append(tot_chi2)
