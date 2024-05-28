@@ -73,7 +73,7 @@ jobs:
       run: |
         pip install twine setuptools
         python setup.py sdist
-        python -m twine upload -u __token__ -p "$MDREFINE_PYPI" dist/MDRefine-*.tar.gz
+        python -m twine upload -u __token__ -p "$MDREFINE_PYPI" dist/*.tar.gz
 
 
   conda:
