@@ -71,7 +71,7 @@ jobs:
       env:
         MDREFINE_PYPI: ${{ secrets.MDREFINE_PYPI }}
       run: |
-        pip install twine
+        pip install twine setuptools
         python setup.py sdist
         python -m twine upload -u __token__ -p "$MDREFINE_PYPI" dist/MDRefine-*.tar.gz
 
