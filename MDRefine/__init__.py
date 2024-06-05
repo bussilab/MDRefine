@@ -16,5 +16,7 @@ _required_ = [
 def get_version():
     return __version__
 
+from .Functions import *
+
 
 
