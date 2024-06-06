@@ -2549,13 +2549,13 @@ def hyper_minimizer(
         random_states=1, which_set='validation', gtol=0.5, ftol=0.05, starting_pars=None):
 
     if starting_alpha <= 0:
-        print('alpha cannot be negative or zero, starting with alpha = 1')
+        print('alpha cannot be negative or zero; starting with alpha = 1')
         starting_alpha = 1
-    if starting_beta < 0:
-        print('beta cannot be negative, starting with beta = 1')
+    if starting_beta <= 0:
+        print('acting on orders of magnitude, beta cannot be negative or zero; starting with beta = 1')
         starting_beta = 1
-    if starting_gamma < 0:
-        print('gamma cannot be negative, starting with gamma = 1')
+    if starting_gamma <= 0:
+        print('acting on orders of magnitude, gamma cannot be negative; starting with gamma = 1')
         starting_gamma = 1
 
     class hyper_intermediate_class():
