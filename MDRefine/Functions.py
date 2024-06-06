@@ -177,11 +177,14 @@ class data_global_class:
         self.system_names = info_global['system_names']
 
         if 'forward_coeffs' in info_global.keys():
-            temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
-            if temp.shape[0] == 1:
-                self.forward_coeffs_0 = temp.iloc[:, 0]
-            else:
-                self.forward_coeffs_0 = temp.squeeze()
+            temp = pandas.read_csv('DATA/'+'original_fm_coeffs', header=None)
+            temp.index = temp.iloc[:, 0]
+            self.forward_coeffs_0 = temp.iloc[:, 1]
+            # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
+            # if temp.shape[0] == 1:
+            #     self.forward_coeffs_0 = temp.iloc[:, 0]
+            # else:
+            #     self.forward_coeffs_0 = temp.squeeze()
 
 
 class data_class:
@@ -2389,7 +2392,9 @@ its gradient w.r.t. hyperparameters
 """
 
 
-def mini_and_chi2_and_grad(data, test_frames, test_obs, regularization, alpha, beta, gamma, starting_pars, which_set, derivatives_funs):
+def mini_and_chi2_and_grad(
+        data, test_frames, test_obs, regularization, alpha, beta, gamma,
+        starting_pars, which_set, derivatives_funs):
 
     out = select_traintest(data, test_frames=test_frames, test_obs=test_obs)
     data_train = out[0]
@@ -2484,38 +2489,40 @@ def hyper_function(
     # chi2 = []
     # gradient = []  # derivatives of chi2 w.r.t. (log10) hyper parameters
 
-    # args = (data, test_frames[i], test_obs[i], regularization, alpha, beta, gamma, starting_pars, which_set, derivatives_funs)
+    # args = (data, test_frames[i], test_obs[i], regularization, alpha, beta, gamma, starting_pars,
+    # which_set, derivatives_funs)
     random_states = test_obs.keys()
 
-    output = Parallel(n_jobs = len(test_obs))(delayed(mini_and_chi2_and_grad)(data, test_frames[seed], test_obs[seed], regularization, alpha, beta, gamma, starting_pars, which_set, derivatives_funs) for seed in random_states)
+    output = Parallel(n_jobs=len(test_obs))(delayed(mini_and_chi2_and_grad)(
+        data, test_frames[seed], test_obs[seed], regularization, alpha, beta, gamma, starting_pars,
+        which_set, derivatives_funs) for seed in random_states)
 
     Results = [output[i][0] for i in range(len(random_states))]
     chi2 = [output[i][1] for i in range(len(random_states))]
     gradient = [output[i][2] for i in range(len(random_states))]
 
-    tot_chi2 = np.sum(np.array(chi2))
+    av_chi2 = np.mean(np.array(chi2))
 
-    tot_gradient = []
+    av_gradient = []
 
     if 'alpha' in map_hyperpars:
-        tot_gradient.append(np.sum(np.array([gradient[k].dchi2_dlogalpha for k in range(len(random_states))])))
+        av_gradient.append(np.mean(np.array([gradient[k].dchi2_dlogalpha for k in range(len(random_states))])))
     if 'beta' in map_hyperpars:
-        tot_gradient.append(np.sum(np.array([gradient[k].dchi2_dlogbeta for k in range(len(random_states))])))
+        av_gradient.append(np.mean(np.array([gradient[k].dchi2_dlogbeta for k in range(len(random_states))])))
     if 'gamma' in map_hyperpars:
-        tot_gradient.append(np.sum(np.array([gradient[k].dchi2_dloggamma for k in range(len(random_states))])))
+        av_gradient.append(np.mean(np.array([gradient[k].dchi2_dloggamma for k in range(len(random_states))])))
 
-    tot_gradient = numpy.array(tot_gradient)
+    av_gradient = numpy.array(av_gradient)
 
-    print('tot chi2: ', tot_chi2)
-    print('tot gradient: ', tot_gradient)
+    print('av. chi2: ', av_chi2)
+    print('av. gradient: ', av_gradient)
 
     global hyper_intermediate
-    hyper_intermediate.tot_chi2.append(tot_chi2)
-    hyper_intermediate.tot_gradient.append(tot_gradient)
+    hyper_intermediate.av_chi2.append(av_chi2)
+    hyper_intermediate.av_gradient.append(av_gradient)
     hyper_intermediate.log10_hyperpars.append(log10_hyperpars)
 
-    return tot_chi2, tot_gradient, Results
-    # return np.log(tot_chi2), tot_gradient/tot_chi2, Results
+    return av_chi2, av_gradient, Results
 
 # %% D7. hyper_minimizer
 
@@ -2539,7 +2546,7 @@ Input values:
 
 def hyper_minimizer(
         data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf, regularization=None,
-        random_states=1, which_set='validation', gtol=0.5, ftol=None, starting_pars=None):
+        random_states=1, which_set='validation', gtol=0.5, ftol=0.05, starting_pars=None):
 
     if starting_alpha <= 0:
         print('alpha cannot be negative or zero, starting with alpha = 1')
@@ -2553,15 +2560,15 @@ def hyper_minimizer(
 
     class hyper_intermediate_class():
         def __init__(self):
-            self.tot_chi2 = []
-            self.tot_gradient = []
+            self.av_chi2 = []
+            self.av_gradient = []
             self.log10_hyperpars = []
 
     global hyper_intermediate
     hyper_intermediate = hyper_intermediate_class()
 
     if type(random_states) is int:
-        random_states = np.arange(random_states)
+        random_states = [i for i in range(random_states)]
 
     """ select training and test set (several seeds) """
 
@@ -2636,8 +2643,8 @@ def hyper_minimizer(
 
     hyper_mini = minimize(hyper_function, log10_hyperpars0, args=args, method=method, jac=True, options=options)
 
-    hyper_intermediate.tot_chi2 = np.array(hyper_intermediate.tot_chi2)
-    hyper_intermediate.tot_gradient = np.array(hyper_intermediate.tot_gradient)
+    hyper_intermediate.av_chi2 = np.array(hyper_intermediate.av_chi2)
+    hyper_intermediate.av_gradient = np.array(hyper_intermediate.av_gradient)
     hyper_intermediate.log10_hyperpars = np.array(hyper_intermediate.log10_hyperpars)
     hyper_mini['intermediate'] = hyper_intermediate
 
