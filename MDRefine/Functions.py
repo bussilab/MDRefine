@@ -177,7 +177,7 @@ class data_global_class:
         self.system_names = info_global['system_names']
 
         if 'forward_coeffs' in info_global.keys():
-            temp = pandas.read_csv('DATA/'+'original_fm_coeffs', header=None)
+            temp = pandas.read_csv(path_directory + '/' + info_global['forward_coeffs'], header=None)
             temp.index = temp.iloc[:, 0]
             self.forward_coeffs_0 = temp.iloc[:, 1]
             # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
