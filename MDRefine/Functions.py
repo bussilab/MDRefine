@@ -82,8 +82,6 @@ def check_and_skip(data, *, stride=1):
 
         my_data.n_experiments = {}
 
-        b_error = 0
-
         if hasattr(my_data, 'gexp'):
             my_data.n_experiments = {}
             for kind in my_data.gexp.keys():
@@ -96,14 +94,11 @@ def check_and_skip(data, *, stride=1):
                     if my_data.ref[kind] == '><':
                         if not np.shape(my_data.gexp[kind+' LOWER'])[0] == np.shape(my_data.g[kind])[1]:
                             print('error: different number of observables for (system, kind) = (%s,%s)' % (name_sys, kind))
-                            b_error = 1
                         if not np.shape(my_data.gexp[kind+' UPPER'])[0] == np.shape(my_data.g[kind])[1]:
                             print('error: different number of observables for (system, kind) = (%s,%s)' % (name_sys, kind))
-                            b_error = 1
                     else:
                         if not np.shape(my_data.gexp[kind])[0] == np.shape(my_data.g[kind])[1]:
                             print('error: different number of observables for (system, kind) = (%s,%s)' % (name_sys, kind))
-                            b_error = 1
 
         """ check number of frames """
 
@@ -113,24 +108,21 @@ def check_and_skip(data, *, stride=1):
             print('error: missing MD data')
         else:
 
+            err_string = [
+                'error: different number of frames for observable (system,kind) = (%s,%s)',
+                'error: different number of frames for forward_qs (system,kind) = (%s,%s)',
+                'error: different number of frames for force field terms of system %s']
+
             if hasattr(my_data, 'g'):
                 for kind in my_data.g.keys():
-                    if not np.shape(my_data.g[kind])[0] == n_frames:
-                        print('error: different number of frames for observable (system,kind) = (%s,%s)' % (name_sys, kind))
-                        b_error = 1
+                    assert np.shape(my_data.g[kind])[0] == n_frames, err_string[0] % (name_sys, kind)
 
             if hasattr(my_data, 'forward_qs'):
                 for kind in my_data.forward_qs.keys():
-                    if not np.shape(my_data.forward_qs[kind])[0] == n_frames:
-                        print('error: different number of frames for forward_qs (system,kind) = (%s,%s)' % (name_sys, kind))
-                        b_error = 1
+                    assert np.shape(my_data.forward_qs[kind])[0] == n_frames, err_string[1] % (name_sys, kind)
 
-        if hasattr(my_data, 'f') and not (len(my_data.f) == n_frames):
-            print('error: different number of frames for force field terms of system %s' % name_sys)
-            b_error = 1
-
-        if b_error == 1:
-            return
+        if hasattr(my_data, 'f'):
+            assert len(my_data.f) == n_frames, err_string[2] % name_sys
 
         """ 4. do you want to skip frames? select stride (stride = 1 by default) """
 
@@ -457,9 +449,7 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
     new_weights = np.exp(-correction)*weights
 
-    if np.isnan(new_weights).any():
-        print('Error: new_weights contains None')
-        return
+    assert not np.isnan(new_weights).any(), 'Error: new_weights contains None'
 
     logZ = np.log(np.sum(new_weights))-shift
     new_weights = new_weights/np.sum(new_weights)
@@ -858,28 +848,22 @@ def loss_function(
         alpha: float = +np.inf, beta: float = +np.inf, gamma: float = +np.inf,
         fixed_lambdas: np.array = None, gtol_inn: float = 1e-3, if_save: bool = False, bounds: dict = None):
 
-    if alpha <= 0:
-        print('error! alpha negative or zero')
-        return
-    if beta < 0:
-        print('error! beta is negative')
-        return
-    if gamma < 0:
-        print('error! gamma is negative')
-        return
+    assert alpha > 0, 'alpha must be strictly positive'
+    assert beta >= 0, 'beta must be positive or zero'
+    assert gamma >= 0, 'gamma must be positive or zero'
 
     system_names = data['global'].system_names
 
     if_fixed_lambdas = None  # to avoid error in Pylint
     if not np.isinf(alpha):
         if (fixed_lambdas is None):
-            global lambdas
             if_fixed_lambdas = False
+            global lambdas
             if 'lambdas' not in globals():
                 lambdas = np.zeros(data['global'].tot_n_experiments(data))
         else:
-            lambdas = fixed_lambdas
             if_fixed_lambdas = True
+            lambdas = fixed_lambdas
 
     if not np.isinf(beta):
         names_ff_pars = data['global'].names_ff_pars
@@ -897,7 +881,6 @@ def loss_function(
     weights_P = {}
 
     if not np.isinf(beta):
-
         correction_ff = {}
         logZ_P = {}
 
@@ -927,7 +910,6 @@ def loss_function(
             if hasattr(data[name_sys], 'g'):
                 g[name_sys] = copy.deepcopy(data[name_sys].g)
         else:
-
             if hasattr(data[name_sys], 'g'):
                 g[name_sys] = copy.deepcopy(data[name_sys].g)
             else:
@@ -1050,13 +1032,8 @@ def loss_function(
         reg_fm = regularization['forward_model_reg'](pars_fm, data['global'].forward_coeffs_0)
         loss += gamma*reg_fm
 
-    # print('gamma: ', gamma)
-    # print('reg fm: ', reg_fm)
-
     """ 5. if if_save, save values (in detail) """
     if if_save:
-
-        # print('saved reg fm: ', reg_fm)
 
         class Details_class:
             pass
@@ -1127,6 +1104,7 @@ def loss_function(
         return Details
 
     return loss
+
 
 # %% C8. loss_function_and_grad
 
@@ -1205,22 +1183,19 @@ def deconvolve_lambdas(data, lambdas: np.array, if_denormalize: bool = True):
             ns += data[name_sys].n_experiments[name]
 
         if if_denormalize:
-            if hasattr(data[name_sys], 'normg_std'):
-                for name in data[name_sys].ref.keys():
-                    if data[name_sys].ref[name] == '><':
-                        # you can sum since one of the two is zero
-                        dict_lambdas[name_sys][name] = (
-                            dict_lambdas[name_sys][name+' LOWER']/data[name_sys].normg_std[name+' LOWER'])
+            assert hasattr(data[name_sys], 'normg_std'), 'Error: missing normalized std values!'
+            for name in data[name_sys].ref.keys():
+                if data[name_sys].ref[name] == '><':
+                    # you can sum since one of the two is zero
+                    dict_lambdas[name_sys][name] = (
+                        dict_lambdas[name_sys][name+' LOWER']/data[name_sys].normg_std[name+' LOWER'])
 
-                        dict_lambdas[name_sys][name] += (
-                            dict_lambdas[name_sys][name+' UPPER']/data[name_sys].normg_std[name+' UPPER'])
+                    dict_lambdas[name_sys][name] += (
+                        dict_lambdas[name_sys][name+' UPPER']/data[name_sys].normg_std[name+' UPPER'])
 
-                        del dict_lambdas[name_sys][name+' LOWER'], dict_lambdas[name_sys][name+' UPPER']
-                    else:
-                        dict_lambdas[name_sys][name] = dict_lambdas[name_sys][name]/data[name_sys].normg_std[name]
-            else:
-                print('Error: missing normalized std values!')
-                return
+                    del dict_lambdas[name_sys][name+' LOWER'], dict_lambdas[name_sys][name+' UPPER']
+                else:
+                    dict_lambdas[name_sys][name] = dict_lambdas[name_sys][name]/data[name_sys].normg_std[name]
         else:
             for name in data[name_sys].ref.keys():
                 if data[name_sys].ref[name] == '><':
@@ -1653,12 +1628,9 @@ def select_traintest(
         rng = random.default_rng(seed=random_state)
         # except: key = random.PRNGKey(random_state)
 
-        if not (test_obs_size > 0 and test_obs_size < 1):
-            print('error on test_obs_size')
-            return
-        if not (test_frames_size > 0 and test_frames_size < 1):
-            print('error on test_frames_size')
-            return
+        assert (test_obs_size > 0 and test_obs_size < 1), 'error on test_obs_size'
+        assert (test_frames_size > 0 and test_frames_size < 1), 'error on test_frames_size'
+
         # check_consistency(test_obs_size,data.n_experiments,0,data.g)
         # check_consistency(test_frames_size,data.n_frames,1,data.g)
 
@@ -2343,13 +2315,11 @@ def compute_hypergradient(
 
     """ compute chi2 and its derivatives w.r.t. pars"""
 
+    assert which_set in ['training', 'validation', 'test'], 'error on which_set'
     if which_set == 'training':
         my_data = data_train
-    elif which_set == 'validation' or which_set == 'test':
-        my_data = data_test
     else:
-        print('error on which_set')
-        return
+        my_data = data_test
 
     my_args = (
         pars_ff_fm, lambdas_vec, my_data, regularization, 10**(log10_alpha), 10**(log10_beta),
@@ -2555,7 +2525,7 @@ def hyper_minimizer(
         print('acting on orders of magnitude, beta cannot be negative or zero; starting with beta = 1')
         starting_beta = 1
     if starting_gamma <= 0:
-        print('acting on orders of magnitude, gamma cannot be negative; starting with gamma = 1')
+        print('acting on orders of magnitude, gamma cannot be negative or zero; starting with gamma = 1')
         starting_gamma = 1
 
     class hyper_intermediate_class():
@@ -2673,42 +2643,50 @@ Required inputs:
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
-        random_states=5, which_set: str = 'validation', gtol: float = 0.5):
+        random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05):
 
     data = load_data(infos, stride=stride)
 
     print('\nsearch for optimal hyperparameters ...')
 
-    mini = hyper_minimizer(data, starting_alpha, starting_beta, starting_gamma, regularization, random_states, which_set, gtol)
+    mini = hyper_minimizer(
+        data, starting_alpha, starting_beta, starting_gamma, regularization,
+        random_states, which_set, gtol, ftol)
+
     optimal_log10_hyperpars = mini.x
 
+    optimal_hyperpars = {}
     i = 0
     s = ''
     if not np.isinf(starting_alpha):
-        optimal_alpha = 10**optimal_log10_hyperpars[i]
-        s = s + 'alpha: ' + str(optimal_alpha) + ' '
+        alpha = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['alpha'] = alpha
+        s = s + 'alpha: ' + str(alpha) + ' '
         i += 1
     else:
-        optimal_alpha = starting_alpha
+        alpha = starting_alpha
     if not np.isinf(starting_beta):
-        optimal_beta = 10**optimal_log10_hyperpars[i]
-        s = s + 'beta: ' + str(optimal_beta) + ' '
+        beta = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['beta'] = beta
+        s = s + 'beta: ' + str(beta) + ' '
         i += 1
     else:
-        optimal_beta = starting_beta
+        beta = starting_beta
     if not np.isinf(starting_gamma):
-        optimal_gamma = 10**optimal_log10_hyperpars[i]
-        s = s + 'gamma: ' + str(optimal_gamma)
+        gamma = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['gamma'] = gamma
+        s = s + 'gamma: ' + str(gamma)
         # i += 1
     else:
-        optimal_gamma = starting_gamma
+        gamma = starting_gamma
 
     print('\noptimal hyperparameters: ' + s)
     print('\nrefinement with optimal hyperparameters on the full data set')
 
-    # for the minimization with optimal hyper-parameters use full data set
-    data = load_data(infos)
+    # # for the minimization with optimal hyper-parameters use full data set
+    # data = load_data(infos)
 
-    Result = minimizer(data, regularization=regularization, alpha=optimal_alpha, beta=optimal_beta, gamma=optimal_gamma)
+    Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma)
+    Result.optimal_hyperpars = optimal_hyperpars
 
     return Result
