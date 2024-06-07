@@ -4,6 +4,7 @@ TODO
 """
 
 from ._version import __version__
+from .Functions import *
 
 # required packages:
 _required_ = [
@@ -13,10 +14,6 @@ _required_ = [
     'jaxlib'
 ]
 
+
 def get_version():
     return __version__
-
-from .Functions import *
-
-
-
