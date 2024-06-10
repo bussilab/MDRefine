@@ -10,6 +10,7 @@ import pandas
 import numpy.random as random
 from scipy.optimize import minimize
 from joblib import Parallel, delayed
+import datetime
 
 
 import numpy
@@ -1239,9 +1240,9 @@ def minimizer(
         original_data, *, regularization: dict = None, alpha: float = +np.inf, beta: float = +np.inf, gamma: float = +np.inf,
         gtol: float = 1e-3, gtol_inn: float = 1e-3, data_test: dict = None, starting_pars: np.array = None):
 
-    assert alpha > 0
-    assert beta >= 0
-    assert gamma >= 0
+    assert alpha > 0, 'alpha must be > 0'
+    assert beta >= 0, 'beta must be >= 0'
+    assert gamma >= 0, 'gamma must be >= 0'
 
     time1 = time.time()
 
@@ -1806,9 +1807,9 @@ def validation(
         pars_ff_fm, lambdas, data_test, *, regularization=None, alpha=np.inf, beta=np.inf, gamma=np.inf,
         data_train=None, which_return='details'):
 
-    assert alpha > 0
-    assert beta >= 0
-    assert gamma >= 0
+    assert alpha > 0, 'alpha must be > 0'
+    assert beta >= 0, 'beta must be >= 0'
+    assert gamma >= 0, 'gamma must be >= 0'
 
     system_names = data_test['global'].system_names
     names_ff_pars = []
@@ -2681,12 +2682,99 @@ def MDRefinement(
         gamma = starting_gamma
 
     print('\noptimal hyperparameters: ' + s)
-    print('\nrefinement with optimal hyperparameters on the full data set')
+    print('\nrefinement with optimal hyperparameters...')  # on the full data set')
 
     # # for the minimization with optimal hyper-parameters use full data set
     # data = load_data(infos)
 
     Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma)
     Result.optimal_hyperpars = optimal_hyperpars
+    Result.hyper_minimization = mini
+
+    print('\ndone')
+
+    """ save results in txt files """
+    if not np.isinf(beta):
+        coeff_names = infos['global']['names_ff_pars']
+    else:
+        coeff_names = []
+    if not np.isinf(gamma):
+        coeff_names = coeff_names + list(data['global'].forward_coeffs_0.keys())
+
+    save_txt(Result, coeff_names, folder_name='Result')
 
     return Result
+
+
+def unwrap_2dict(my_2dict):
+
+    res = []
+    keys = []
+
+    for key1, value1 in my_2dict.items():
+        for key2, value2 in value1.items():
+
+            key = key1 + ' ' + key2
+
+            length = np.array(value2).shape[0]
+            res.extend(list(value2))
+
+            if length > 1:
+                names = [key + ' ' + str(i) for i in range(length)]
+            else:
+                names = [key]
+
+            keys.extend(names)
+
+    return res, keys
+
+
+def save_txt(Result, coeff_names, folder_name='Result'):
+
+    """ use date_time to generate unique file name (assumption: single file name at the same time) """
+    s = datetime.datetime.now()
+    date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
+
+    """ 1. save general results """
+
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+
+    my_dict = {}
+    for k in Result.optimal_hyperpars.keys():
+        my_dict['optimal ' + k] = Result.optimal_hyperpars[k]
+    my_dict['success'] = Result.hyper_minimization.success
+
+    # force-field and forward-model parameters
+    for i, k in enumerate(coeff_names):
+        my_dict[k] = Result.pars[i]
+
+    my_dict['loss'] = Result.loss
+    my_dict['time'] = Result.time
+
+    title = list(my_dict.keys())
+    values = list(my_dict.values())
+
+    df = pandas.DataFrame(values, index=title).T
+    df.to_csv(folder_name + '/result_' + date)
+
+    """ 2. save search for optimal hyperparameters """
+
+    inter = vars(Result.hyper_minimization['intermediate'])
+
+    for i, name in enumerate(Result.optimal_hyperpars.keys()):
+        inter['av_gradient ' + name] = inter['av_gradient'][:, i]
+        inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
+    del inter['av_gradient'], inter['log10_hyperpars']
+
+    df = pandas.DataFrame(inter)
+    df.to_csv(folder_name + '/hyper_search_' + date)
+
+    """ 3. save optimal lambdas """
+
+    flat_lambdas = unwrap_2dict(Result.min_lambdas)
+    df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1]).T
+
+    df.to_csv(folder_name + '/min_lambdas_' + date)
+
+    return
