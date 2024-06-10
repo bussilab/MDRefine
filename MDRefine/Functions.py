@@ -16,7 +16,7 @@ import datetime
 import numpy
 import jax
 import jax.numpy as np
-from jax.config import config
+from jax import config
 config.update("jax_enable_x64", True)
 
 # %% A. Functions to load data:
