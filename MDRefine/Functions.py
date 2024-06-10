@@ -2701,7 +2701,12 @@ def MDRefinement(
     if not np.isinf(gamma):
         coeff_names = coeff_names + list(data['global'].forward_coeffs_0.keys())
 
-    save_txt(Result, coeff_names, folder_name='Result')
+    input_values = {
+        'stride': stride, 'starting_alpha': starting_alpha, 'starting_beta': starting_beta,
+        'starting_gamma': starting_gamma, 'random_states': random_states, 'which_set': which_set,
+        'gtol': gtol, 'ftol': ftol}
+
+    save_txt(input_values, Result, coeff_names, folder_name='Result')
 
     return Result
 
@@ -2729,16 +2734,20 @@ def unwrap_2dict(my_2dict):
     return res, keys
 
 
-def save_txt(Result, coeff_names, folder_name='Result'):
+def save_txt(input_values, Result, coeff_names, folder_name='Result'):
 
     """ use date_time to generate unique file name (assumption: single file name at the same time) """
     s = datetime.datetime.now()
     date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
 
-    """ 1. save general results """
-
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
+
+    """0. save input values """
+    temp = pandas.DataFrame(list(input_values.keys()), index=list(input_values.values())).T
+    temp.to_csv(folder_name + '/%s_input' % date)
+
+    """ 1. save general results """
 
     my_dict = {}
     for k in Result.optimal_hyperpars.keys():
