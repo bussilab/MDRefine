@@ -2744,7 +2744,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
         os.makedirs(folder_name)
 
     """0. save input values """
-    temp = pandas.DataFrame(list(input_values.values()), index=list(input_values.keys())).T
+    temp = pandas.DataFrame(list(input_values.values()), index=list(input_values.keys()), columns=[date]).T
     temp.to_csv(folder_name + '/%s_input' % date)
 
     """ 1. save general results """
@@ -2764,7 +2764,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     title = list(my_dict.keys())
     values = list(my_dict.values())
 
-    df = pandas.DataFrame(values, index=title).T
+    df = pandas.DataFrame(values, index=title, columns=[date]).T
     df.to_csv(folder_name + '/%s_result' % date)
 
     """ 2. save search for optimal hyperparameters """
@@ -2776,13 +2776,13 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
         inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
     del inter['av_gradient'], inter['log10_hyperpars']
 
-    df = pandas.DataFrame(inter)
+    df = pandas.DataFrame(inter, columns=[date])
     df.to_csv(folder_name + '/%s_hyper_search' % date)
 
     """ 3. save optimal lambdas """
 
     flat_lambdas = unwrap_2dict(Result.min_lambdas)
-    df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1]).T
+    df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1], columns=[date]).T
 
     df.to_csv(folder_name + '/%s_min_lambdas' % date)
 
