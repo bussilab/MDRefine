@@ -2765,7 +2765,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     values = list(my_dict.values())
 
     df = pandas.DataFrame(values, index=title).T
-    df.to_csv(folder_name + '/result_' + date)
+    df.to_csv(folder_name + '/%s_result' % date)
 
     """ 2. save search for optimal hyperparameters """
 
@@ -2777,13 +2777,13 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     del inter['av_gradient'], inter['log10_hyperpars']
 
     df = pandas.DataFrame(inter)
-    df.to_csv(folder_name + '/hyper_search_' + date)
+    df.to_csv(folder_name + '/%s_hyper_search' % date)
 
     """ 3. save optimal lambdas """
 
     flat_lambdas = unwrap_2dict(Result.min_lambdas)
     df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1]).T
 
-    df.to_csv(folder_name + '/min_lambdas_' + date)
+    df.to_csv(folder_name + '/%s_min_lambdas' % date)
 
     return
