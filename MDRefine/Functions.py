@@ -2744,7 +2744,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
         os.makedirs(folder_name)
 
     """0. save input values """
-    temp = pandas.DataFrame(list(input_values.keys()), index=list(input_values.values())).T
+    temp = pandas.DataFrame(list(input_values.values()), index=list(input_values.keys())).T
     temp.to_csv(folder_name + '/%s_input' % date)
 
     """ 1. save general results """
