@@ -1,6 +1,7 @@
 """
 Tools to perform reweighting using the fully combined approach.
 It also includes optimization of the hyperparameters through minimization of chi2 on test set.
+numpy is required for loadtxt and for gradient arrays with L-BFGS-B minimization (rather than jax.numpy)
 """
 import os
 import copy
@@ -8,9 +9,12 @@ import time
 import pandas
 import numpy.random as random
 from scipy.optimize import minimize
+from joblib import Parallel, delayed
+import datetime
 
+
+import numpy
 import jax
-import numpy  # L-BFGS-B requires numpy arrays rather than jax.numpy for the gradient of gamma_function
 import jax.numpy as np
 from jax import config
 config.update("jax_enable_x64", True)
@@ -79,8 +83,6 @@ def check_and_skip(data, *, stride=1):
 
         my_data.n_experiments = {}
 
-        b_error = 0
-
         if hasattr(my_data, 'gexp'):
             my_data.n_experiments = {}
             for kind in my_data.gexp.keys():
@@ -93,14 +95,11 @@ def check_and_skip(data, *, stride=1):
                     if my_data.ref[kind] == '><':
                         if not np.shape(my_data.gexp[kind+' LOWER'])[0] == np.shape(my_data.g[kind])[1]:
                             print('error: different number of observables for (system, kind) = (%s,%s)' % (name_sys, kind))
-                            b_error = 1
                         if not np.shape(my_data.gexp[kind+' UPPER'])[0] == np.shape(my_data.g[kind])[1]:
                             print('error: different number of observables for (system, kind) = (%s,%s)' % (name_sys, kind))
-                            b_error = 1
                     else:
                         if not np.shape(my_data.gexp[kind])[0] == np.shape(my_data.g[kind])[1]:
                             print('error: different number of observables for (system, kind) = (%s,%s)' % (name_sys, kind))
-                            b_error = 1
 
         """ check number of frames """
 
@@ -110,24 +109,21 @@ def check_and_skip(data, *, stride=1):
             print('error: missing MD data')
         else:
 
+            err_string = [
+                'error: different number of frames for observable (system,kind) = (%s,%s)',
+                'error: different number of frames for forward_qs (system,kind) = (%s,%s)',
+                'error: different number of frames for force field terms of system %s']
+
             if hasattr(my_data, 'g'):
                 for kind in my_data.g.keys():
-                    if not np.shape(my_data.g[kind])[0] == n_frames:
-                        print('error: different number of frames for observable (system,kind) = (%s,%s)' % (name_sys, kind))
-                        b_error = 1
+                    assert np.shape(my_data.g[kind])[0] == n_frames, err_string[0] % (name_sys, kind)
 
             if hasattr(my_data, 'forward_qs'):
                 for kind in my_data.forward_qs.keys():
-                    if not np.shape(my_data.forward_qs[kind])[0] == n_frames:
-                        print('error: different number of frames for forward_qs (system,kind) = (%s,%s)' % (name_sys, kind))
-                        b_error = 1
+                    assert np.shape(my_data.forward_qs[kind])[0] == n_frames, err_string[1] % (name_sys, kind)
 
-        if hasattr(my_data, 'f') and not (len(my_data.f) == n_frames):
-            print('error: different number of frames for force field terms of system %s' % name_sys)
-            b_error = 1
-
-        if b_error == 1:
-            return
+        if hasattr(my_data, 'f'):
+            assert len(my_data.f) == n_frames, err_string[2] % name_sys
 
         """ 4. do you want to skip frames? select stride (stride = 1 by default) """
 
@@ -174,11 +170,14 @@ class data_global_class:
         self.system_names = info_global['system_names']
 
         if 'forward_coeffs' in info_global.keys():
-            temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
-            if temp.shape[0] == 1:
-                self.forward_coeffs_0 = temp.iloc[:, 0]
-            else:
-                self.forward_coeffs_0 = temp.squeeze()
+            temp = pandas.read_csv(path_directory + '/' + info_global['forward_coeffs'], header=None)
+            temp.index = temp.iloc[:, 0]
+            self.forward_coeffs_0 = temp.iloc[:, 1]
+            # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
+            # if temp.shape[0] == 1:
+            #     self.forward_coeffs_0 = temp.iloc[:, 0]
+            # else:
+            #     self.forward_coeffs_0 = temp.squeeze()
 
 
 class data_class:
@@ -451,9 +450,7 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
     new_weights = np.exp(-correction)*weights
 
-    if np.isnan(new_weights).any():
-        print('Error: new_weights contains None')
-        return
+    assert not np.isnan(new_weights).any(), 'Error: new_weights contains None'
 
     logZ = np.log(np.sum(new_weights))-shift
     new_weights = new_weights/np.sum(new_weights)
@@ -848,21 +845,26 @@ order for par_fm: data.forward_coeffs_0.
 
 
 def loss_function(
-    pars_ff_fm: np.array, data: dict, regularization: dict, alpha: float = np.inf, beta: float = np.inf, gamma: float = np.inf,
+    pars_ff_fm: np.array, data: dict, regularization: dict,
+        alpha: float = +np.inf, beta: float = +np.inf, gamma: float = +np.inf,
         fixed_lambdas: np.array = None, gtol_inn: float = 1e-3, if_save: bool = False, bounds: dict = None):
+
+    assert alpha > 0, 'alpha must be strictly positive'
+    assert beta >= 0, 'beta must be positive or zero'
+    assert gamma >= 0, 'gamma must be positive or zero'
 
     system_names = data['global'].system_names
 
     if_fixed_lambdas = None  # to avoid error in Pylint
     if not np.isinf(alpha):
         if (fixed_lambdas is None):
-            global lambdas
             if_fixed_lambdas = False
+            global lambdas
             if 'lambdas' not in globals():
                 lambdas = np.zeros(data['global'].tot_n_experiments(data))
         else:
-            lambdas = fixed_lambdas
             if_fixed_lambdas = True
+            lambdas = fixed_lambdas
 
     if not np.isinf(beta):
         names_ff_pars = data['global'].names_ff_pars
@@ -880,7 +882,6 @@ def loss_function(
     weights_P = {}
 
     if not np.isinf(beta):
-
         correction_ff = {}
         logZ_P = {}
 
@@ -910,7 +911,6 @@ def loss_function(
             if hasattr(data[name_sys], 'g'):
                 g[name_sys] = copy.deepcopy(data[name_sys].g)
         else:
-
             if hasattr(data[name_sys], 'g'):
                 g[name_sys] = copy.deepcopy(data[name_sys].g)
             else:
@@ -1014,7 +1014,7 @@ def loss_function(
 
     """ 3. add regularization of force-field correction """
 
-    if not (np.isinf(beta) or beta == 0):
+    if not np.isinf(beta):
         if not isinstance(regularization['force_field_reg'], str):
             reg_ff = regularization['force_field_reg'](pars_ff)
             loss += beta*reg_ff
@@ -1029,12 +1029,13 @@ def loss_function(
                 loss += beta*reg_ff[name_sys]
 
     """ 4. add regularization of forward-model coefficients """
-    if not (np.isinf(gamma) or gamma == 0):
+    if not np.isinf(gamma):
         reg_fm = regularization['forward_model_reg'](pars_fm, data['global'].forward_coeffs_0)
         loss += gamma*reg_fm
 
     """ 5. if if_save, save values (in detail) """
     if if_save:
+
         class Details_class:
             pass
         Details = Details_class()
@@ -1104,6 +1105,7 @@ def loss_function(
         return Details
 
     return loss
+
 
 # %% C8. loss_function_and_grad
 
@@ -1182,22 +1184,19 @@ def deconvolve_lambdas(data, lambdas: np.array, if_denormalize: bool = True):
             ns += data[name_sys].n_experiments[name]
 
         if if_denormalize:
-            if hasattr(data[name_sys], 'normg_std'):
-                for name in data[name_sys].ref.keys():
-                    if data[name_sys].ref[name] == '><':
-                        # you can sum since one of the two is zero
-                        dict_lambdas[name_sys][name] = (
-                            dict_lambdas[name_sys][name+' LOWER']/data[name_sys].normg_std[name+' LOWER'])
+            assert hasattr(data[name_sys], 'normg_std'), 'Error: missing normalized std values!'
+            for name in data[name_sys].ref.keys():
+                if data[name_sys].ref[name] == '><':
+                    # you can sum since one of the two is zero
+                    dict_lambdas[name_sys][name] = (
+                        dict_lambdas[name_sys][name+' LOWER']/data[name_sys].normg_std[name+' LOWER'])
 
-                        dict_lambdas[name_sys][name] += (
-                            dict_lambdas[name_sys][name+' UPPER']/data[name_sys].normg_std[name+' UPPER'])
+                    dict_lambdas[name_sys][name] += (
+                        dict_lambdas[name_sys][name+' UPPER']/data[name_sys].normg_std[name+' UPPER'])
 
-                        del dict_lambdas[name_sys][name+' LOWER'], dict_lambdas[name_sys][name+' UPPER']
-                    else:
-                        dict_lambdas[name_sys][name] = dict_lambdas[name_sys][name]/data[name_sys].normg_std[name]
-            else:
-                print('Error: missing normalized std values!')
-                return
+                    del dict_lambdas[name_sys][name+' LOWER'], dict_lambdas[name_sys][name+' UPPER']
+                else:
+                    dict_lambdas[name_sys][name] = dict_lambdas[name_sys][name]/data[name_sys].normg_std[name]
         else:
             for name in data[name_sys].ref.keys():
                 if data[name_sys].ref[name] == '><':
@@ -1238,8 +1237,12 @@ class intermediates_class:
 
 
 def minimizer(
-        original_data, *, regularization: dict = None, alpha: float = np.inf, beta: float = np.inf, gamma: float = np.inf,
+        original_data, *, regularization: dict = None, alpha: float = +np.inf, beta: float = +np.inf, gamma: float = +np.inf,
         gtol: float = 1e-3, gtol_inn: float = 1e-3, data_test: dict = None, starting_pars: np.array = None):
+
+    assert alpha > 0, 'alpha must be > 0'
+    assert beta >= 0, 'beta must be >= 0'
+    assert gamma >= 0, 'gamma must be >= 0'
 
     time1 = time.time()
 
@@ -1287,7 +1290,7 @@ def minimizer(
 
     """ if needed, define boundaries for minimization over lambdas """
 
-    if not alpha == np.inf:
+    if not np.isinf(alpha):
 
         my_list = []
         for k in data['global'].system_names:
@@ -1360,7 +1363,7 @@ def minimizer(
 
         pars_ff_fm = mini.x
 
-        class Result_class:
+        class Result_class():
             def __init__(self, mini):
                 self.loss = mini.fun
                 self.pars = pars_ff_fm
@@ -1545,6 +1548,12 @@ class class_test:
 class class_train:
     def __init__(self, data_sys, test_frames_sys, test_obs_sys):
 
+        # training observables
+        train_obs = {}
+        for s in data_sys.n_experiments.keys():
+            train_obs[s] = [i for i in range(data_sys.n_experiments[s]) if i not in test_obs_sys[s]]
+        self.selected_obs = train_obs
+
         # A. split weights
         w = np.delete(data_sys.weights, test_frames_sys)
         self.logZ = np.log(np.sum(w))
@@ -1573,8 +1582,7 @@ class class_train:
             self.names = {}
 
             for name_type in data_sys.names.keys():
-                train_obs = list(set(np.arange(data_sys.names[name_type].shape[0]))-set(test_obs_sys[name_type]))
-                self.names[name_type] = data_sys.names[name_type][train_obs]
+                self.names[name_type] = data_sys.names[name_type][train_obs[name_type]]
 
         if hasattr(data_sys, 'g'):
 
@@ -1595,11 +1603,6 @@ class class_train:
             self.forward_model = data_sys.forward_model
 
         self.ref = data_sys.ref
-
-        train_obs = {}
-        for s in data_sys.n_experiments.keys():
-            train_obs[s] = list(set(np.arange(data_sys.n_experiments[s]))-set(test_obs_sys[s]))
-        self.selected_obs = train_obs
 
         self.temperature = data_sys.temperature
 
@@ -1626,12 +1629,9 @@ def select_traintest(
         rng = random.default_rng(seed=random_state)
         # except: key = random.PRNGKey(random_state)
 
-        if not (test_obs_size > 0 and test_obs_size < 1):
-            print('error on test_obs_size')
-            return
-        if not (test_frames_size > 0 and test_frames_size < 1):
-            print('error on test_frames_size')
-            return
+        assert (test_obs_size > 0 and test_obs_size < 1), 'error on test_obs_size'
+        assert (test_frames_size > 0 and test_frames_size < 1), 'error on test_frames_size'
+
         # check_consistency(test_obs_size,data.n_experiments,0,data.g)
         # check_consistency(test_frames_size,data.n_frames,1,data.g)
 
@@ -1807,6 +1807,10 @@ def validation(
         pars_ff_fm, lambdas, data_test, *, regularization=None, alpha=np.inf, beta=np.inf, gamma=np.inf,
         data_train=None, which_return='details'):
 
+    assert alpha > 0, 'alpha must be > 0'
+    assert beta >= 0, 'beta must be >= 0'
+    assert gamma >= 0, 'gamma must be >= 0'
+
     system_names = data_test['global'].system_names
     names_ff_pars = []
 
@@ -1969,11 +1973,11 @@ they include dlambdas_dlogalpha, dlambdas_dpars, dpars_dlogalpha, dpars_dlogbeta
 
 def compute_hyperderivatives(
         pars_ff_fm, lambdas, data, regularization, derivatives_funs,
-        log10_alpha=np.inf, log10_beta=np.inf, log10_gamma=np.inf):
+        log10_alpha=+np.inf, log10_beta=+np.inf, log10_gamma=+np.inf):
 
     system_names = data['global'].system_names
 
-    if np.isinf(log10_beta) and np.isinf(log10_gamma) and not np.isinf(log10_alpha):
+    if np.isposinf(log10_beta) and np.isposinf(log10_gamma) and not np.isinf(log10_alpha):
 
         alpha = np.float64(10**log10_alpha)
 
@@ -1985,51 +1989,46 @@ def compute_hyperderivatives(
         class derivatives:
             pass
 
-        derivatives.dlambdas_dlogalpha = {}
+        derivatives.dlambdas_dlogalpha = []
 
         for i_sys, name_sys in enumerate(system_names):
 
             my_lambdas = lambdas[js[i_sys][0]:js[i_sys][-1]]
+            # indices = np.nonzero(my_lambdas)[0]
 
-            indices = np.nonzero(my_lambdas)[0]
+            refs = []
+            for name in data[name_sys].n_experiments.keys():
+                refs.extend(data[name_sys].ref[name]*data[name_sys].n_experiments[name])
 
-            # refs = []
-            # for name in data[name_sys].n_experiments.keys():
-            #     refs.extend(data[name_sys].ref[name]*data[name_sys].n_experiments[name])
+            # indices of lambdas NOT on constraints
+            indices = np.array([k for k in range(len(my_lambdas)) if ((not my_lambdas[k] == 0) or (refs[k] == '='))])
 
-            # indices = np.array([k for k in indices if not refs[k] == '='])  # indices of lambdas on constraints
+            if len(indices) == 0:
+                print('all lambdas of system %s are on boundaries!' % name_sys)
 
-            my_lambdas = my_lambdas[indices]
-            g = np.hstack([data[name_sys].g[k] for k in data[name_sys].n_experiments])[:, indices]
-            gexp = np.vstack([data[name_sys].gexp[k] for k in data[name_sys].n_experiments])[indices]
+            else:
 
-            my_args = (my_lambdas, g, gexp, data[name_sys].weights, alpha)
-            Hess_inv = np.linalg.inv(derivatives_funs.d2gamma_dlambdas2(*my_args))
+                my_lambdas = my_lambdas[indices]
 
-            derivatives.dlambdas_dlogalpha[name_sys] = -np.matmul(
-                Hess_inv, derivatives_funs.d2gamma_dlambdas_dalpha(*my_args))*alpha*np.log(10)
+                g = np.hstack([data[name_sys].g[k] for k in data[name_sys].n_experiments.keys()])[:, indices]
+                gexp = np.vstack([data[name_sys].gexp[k] for k in data[name_sys].n_experiments.keys()])[indices]
 
-    elif not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
+                my_args = (my_lambdas, g, gexp, data[name_sys].weights, alpha)
+                Hess_inv = np.linalg.inv(derivatives_funs.d2gamma_dlambdas2(*my_args))
+
+                derivatives.dlambdas_dlogalpha.append(
+                    -np.matmul(Hess_inv, derivatives_funs.d2gamma_dlambdas_dalpha(*my_args))*alpha*np.log(10))
+
+    elif not (np.isposinf(log10_beta) and np.isposinf(log10_gamma)):
 
         pars_ff_fm = np.array(pars_ff_fm)
 
         class derivatives:
             pass
 
-        if not np.isinf(log10_alpha):
-            alpha = np.float64(10**log10_alpha)
-        else:
-            alpha = np.inf
-
-        if not np.isinf(log10_beta):
-            beta = np.float64(10**log10_beta)
-        else:
-            beta = np.inf
-
-        if not np.isinf(log10_gamma):
-            gamma = np.float64(10**log10_gamma)
-        else:
-            gamma = np.inf
+        alpha = np.float64(10**log10_alpha)
+        beta = np.float64(10**log10_beta)
+        gamma = np.float64(10**log10_gamma)
 
         args = (pars_ff_fm, data, regularization, alpha, beta, gamma, lambdas)
 
@@ -2048,8 +2047,8 @@ def compute_hyperderivatives(
             BUT you have to evaluate Gamma at given phi, theta !!
             """
 
-            derivatives.dlambdas_dlogalpha = {}
-            derivatives.dlambdas_dpars = {}
+            derivatives.dlambdas_dlogalpha = []
+            derivatives.dlambdas_dpars = []
 
             terms = []  # terms to add to get d2loss_dmu2 deriving from lambdas contribution
             terms2 = []
@@ -2057,7 +2056,7 @@ def compute_hyperderivatives(
             names_ff_pars = []
 
             """ compute new weights with ff correction phi """
-            if not np.isinf(beta):
+            if not np.isposinf(beta):
 
                 names_ff_pars = data['global'].names_ff_pars
                 pars_ff = pars_ff_fm[:len(names_ff_pars)]
@@ -2086,7 +2085,7 @@ def compute_hyperderivatives(
 
             g = {}
 
-            if np.isinf(gamma):
+            if np.isposinf(gamma):
 
                 for name in system_names:
                     if hasattr(data[name], 'g'):
@@ -2111,36 +2110,48 @@ def compute_hyperderivatives(
 
                     del fm_observables
 
-            """ use observables in the initial format """
-            # for name_sys in system_names:
-            #     for name in data[name_sys].ref.keys():
-            #         if data[name_sys].ref[name] == '><':
-            #             g[name_sys][name+' LOWER'] = g[name_sys][name]
-            #             g[name_sys][name+' UPPER'] = g[name_sys][name]
-            #             del g[name_sys][name]
-
             """ Compute derivatives and Hessian. """
 
             for i_sys, name_sys in enumerate(system_names):
 
                 my_lambdas = lambdas[js[i_sys][0]:js[i_sys][-1]]
-                my_g = np.hstack([g[name_sys][k] for k in data[name_sys].n_experiments])
-                my_gexp = np.vstack([data[name_sys].gexp[k] for k in data[name_sys].n_experiments])
 
-                my_args = (my_lambdas, my_g, my_gexp, weights_P[name_sys], alpha)
+                """ use indices to select lambdas NOT on constraints """
+                refs = []
+                for name in data[name_sys].n_experiments.keys():
+                    refs.extend(data[name_sys].ref[name]*data[name_sys].n_experiments[name])
 
-                Hess_inn_inv = np.linalg.inv(derivatives_funs.d2gamma_dlambdas2(*my_args))
+                # indices of lambdas NOT on constraints
+                indices = np.array([k for k in range(len(my_lambdas)) if ((not my_lambdas[k] == 0) or (refs[k] == '='))])
 
-                derivatives.dlambdas_dlogalpha[name_sys] = -np.matmul(
-                    Hess_inn_inv, derivatives_funs.d2gamma_dlambdas_dalpha(*my_args))*alpha*np.log(10)
+                if len(indices) == 0:
+                    print('all lambdas of system %s are on boundaries!' % name_sys)
 
-                matrix = d2loss_dpars_dlambdas[:, js[i_sys][0]:js[i_sys][-1]]
-                derivatives.dlambdas_dpars[name_sys] = +np.matmul(Hess_inn_inv, matrix.T)/alpha
-                terms.append(np.einsum('ij,jk,kl->il', matrix, Hess_inn_inv, matrix.T))
-                terms2.append(np.matmul(matrix, derivatives.dlambdas_dlogalpha[name_sys]))
+                else:
 
-            Hess = +np.sum(np.array(terms), axis=0)/alpha + derivatives_funs.d2loss_dpars2(*args)
-            terms2 = np.sum(np.array(terms2), axis=0)
+                    my_lambdas = my_lambdas[indices]
+
+                    my_g = np.hstack([g[name_sys][k] for k in data[name_sys].n_experiments])[:, indices]
+                    my_gexp = np.vstack([data[name_sys].gexp[k] for k in data[name_sys].n_experiments])[indices]
+
+                    my_args = (my_lambdas, my_g, my_gexp, weights_P[name_sys], alpha)
+
+                    Hess_inn_inv = np.linalg.inv(derivatives_funs.d2gamma_dlambdas2(*my_args))
+
+                    derivatives.dlambdas_dlogalpha.append(
+                        -np.matmul(Hess_inn_inv, derivatives_funs.d2gamma_dlambdas_dalpha(*my_args))*alpha*np.log(10))
+
+                    matrix = d2loss_dpars_dlambdas[:, js[i_sys][0]:js[i_sys][-1]][:, indices]
+                    derivatives.dlambdas_dpars.append(+np.matmul(Hess_inn_inv, matrix.T)/alpha)
+                    terms.append(np.einsum('ij,jk,kl->il', matrix, Hess_inn_inv, matrix.T))
+                    terms2.append(np.matmul(matrix, derivatives.dlambdas_dlogalpha[-1]))
+
+            if not terms == []:
+                Hess = +np.sum(np.array(terms), axis=0)/alpha + derivatives_funs.d2loss_dpars2(*args)
+                terms2 = np.sum(np.array(terms2), axis=0)
+            else:
+                Hess = derivatives_funs.d2loss_dpars2(*args)
+                terms2 = np.zeros(Hess.shape[0])
 
         else:
             Hess = derivatives_funs.d2loss_dpars2(*args)
@@ -2150,10 +2161,10 @@ def compute_hyperderivatives(
         if not np.isinf(alpha):
             d2loss_dpars_dlogalpha = derivatives_funs.d2loss_dpars_dalpha(*args)*alpha*np.log(10)
             derivatives.dpars_dlogalpha = -np.matmul(inv_Hess, d2loss_dpars_dlogalpha + terms2)
-        if not np.isinf(beta):
+        if not np.isposinf(beta):
             d2loss_dpars_dbeta = derivatives_funs.d2loss_dpars_dbeta(*args)
             derivatives.dpars_dlogbeta = -np.matmul(inv_Hess, d2loss_dpars_dbeta)*beta*np.log(10)
-        if not np.isinf(gamma):
+        if not np.isposinf(gamma):
             d2loss_dpars_dgamma = derivatives_funs.d2loss_dpars_dgamma(*args)
             derivatives.dpars_dloggamma = -np.matmul(inv_Hess, d2loss_dpars_dgamma)*gamma*np.log(10)
 
@@ -2220,8 +2231,11 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
         pass
     out = out_class()
 
-    if (dchi2_dpars is None) and (dchi2_dlambdas is not None):
-        out.dchi2_dlogalpha = np.dot(dchi2_dlambdas, derivatives.dlambdas_dlogalpha)
+    if dchi2_dpars is None:
+        if dchi2_dlambdas is not None:
+            out.dchi2_dlogalpha = np.dot(dchi2_dlambdas, derivatives.dlambdas_dlogalpha)
+        else:
+            out.dchi2_dlogalpha = np.zeros(1)
 
     elif dchi2_dpars is not None:
 
@@ -2233,6 +2247,9 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
             temp = np.dot(dchi2_dlambdas, derivatives.dlambdas_dlogalpha)
 
             out.dchi2_dlogalpha = np.dot(vec, derivatives.dpars_dlogalpha) + temp
+
+        elif hasattr(derivatives, 'dpars_dlogalpha'):  # namely, if np.isinf(alpha) and zero contribute from lambdas
+            out.dchi2_dlogalpha = np.dot(vec, derivatives.dpars_dlogalpha)
 
         if hasattr(derivatives, 'dpars_dlogbeta'):
             out.dchi2_dlogbeta = np.dot(vec, derivatives.dpars_dlogbeta)
@@ -2271,17 +2288,24 @@ def compute_hypergradient(
     """ compute derivatives of optimal pars w.r.t. hyper parameters """
     if not np.isinf(log10_alpha):
         lambdas_vec = []
-        # refs = []
+        refs = []
 
         for name_sys in system_names:
             for name in data_train[name_sys].n_experiments.keys():
                 lambdas_vec.append(lambdas[name_sys][name])
-                # refs.extend(data_train[name_sys].ref[name]*data_train[name_sys].n_experiments[name])
+                refs.extend(data_train[name_sys].ref[name]*data_train[name_sys].n_experiments[name])
 
         lambdas_vec = np.concatenate((lambdas_vec))
 
-        indices = np.nonzero(lambdas_vec)[0]
-        # indices = np.array([k for k in indices if not refs[k] == '='])  # indices of lambdas on constraints
+        """ indices of lambdas NOT on constraints """
+        indices = np.array([k for k in range(len(lambdas_vec)) if ((not lambdas_vec[k] == 0) or (refs[k] == '='))])
+        # indices = np.nonzero(lambdas_vec)[0]
+
+        if len(indices) == 0:
+            print('all lambdas are on boundaries!')
+            if np.isinf(log10_beta) and np.isinf(log10_gamma):
+                print('no suggestion on how to move in parameter space!')
+                # gradient = np.zeros(1)
 
     else:
         lambdas_vec = None
@@ -2292,13 +2316,11 @@ def compute_hypergradient(
 
     """ compute chi2 and its derivatives w.r.t. pars"""
 
+    assert which_set in ['training', 'validation', 'test'], 'error on which_set'
     if which_set == 'training':
         my_data = data_train
-    elif which_set == 'validation' or which_set == 'test':
-        my_data = data_test
     else:
-        print('error on which_set')
-        return
+        my_data = data_test
 
     my_args = (
         pars_ff_fm, lambdas_vec, my_data, regularization, 10**(log10_alpha), 10**(log10_beta),
@@ -2306,11 +2328,14 @@ def compute_hypergradient(
 
     chi2 = compute_chi2_tot(*my_args)  # so, lambdas follows order of system_names of my_data
 
+    # if (len(indices) == 0) and np.isinf(log10_beta) and np.isinf(log10_gamma):
+    #     return chi2, np.zeros(1)
+
     if not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
         dchi2_dpars = derivatives_funs.dchi2_dpars(*my_args)
     else:
         dchi2_dpars = None
-    if not np.isinf(log10_alpha):
+    if not (np.isinf(log10_alpha) or len(indices) == 0):
         dchi2_dlambdas = derivatives_funs.dchi2_dlambdas(*my_args)
         dchi2_dlambdas = dchi2_dlambdas[indices]
     else:
@@ -2318,18 +2343,53 @@ def compute_hypergradient(
 
     """ compute derivatives of chi2 w.r.t. hyper parameters (put together the previous two) """
 
-    if hasattr(derivatives, 'dlambdas_dlogalpha'):
-        derivatives.dlambdas_dlogalpha = np.concatenate(([
-            derivatives.dlambdas_dlogalpha[name_sys] for name_sys in system_names]))
-    if hasattr(derivatives, 'dlambdas_dpars'):
-        derivatives.dlambdas_dpars = np.concatenate(([
-            derivatives.dlambdas_dpars[name_sys] for name_sys in system_names]))
+    if hasattr(derivatives, 'dlambdas_dlogalpha') and not derivatives.dlambdas_dlogalpha == []:
+        # ks = [k for k in system_names if k in derivatives.dlambdas_dlogalpha.keys()]
+        derivatives.dlambdas_dlogalpha = np.concatenate(derivatives.dlambdas_dlogalpha)
+    if hasattr(derivatives, 'dlambdas_dpars') and not derivatives.dlambdas_dpars == []:
+        # ks = [k for k in system_names if k in derivatives.dlambdas_dpars.keys()]
+        derivatives.dlambdas_dpars = np.concatenate(derivatives.dlambdas_dpars)
 
     gradient = put_together(dchi2_dpars, dchi2_dlambdas, derivatives)
 
     return chi2, gradient
 
-# %% D5. hyper_function
+
+# %% D5. mini_and_chi2_and_grad
+
+"""
+Function **mini_and_chi2_and_grad** minimizes loss function at given hyperparameters, compute the chi2 and
+its gradient w.r.t. hyperparameters
+"""
+
+
+def mini_and_chi2_and_grad(
+        data, test_frames, test_obs, regularization, alpha, beta, gamma,
+        starting_pars, which_set, derivatives_funs):
+
+    out = select_traintest(data, test_frames=test_frames, test_obs=test_obs)
+    data_train = out[0]
+    data_test = out[1]
+
+    mini = minimizer(
+        data_train, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma, starting_pars=starting_pars)
+
+    if hasattr(mini, 'pars'):
+        pars_ff_fm = mini.pars
+    else:
+        pars_ff_fm = None
+    if hasattr(mini, 'min_lambdas'):
+        lambdas = mini.min_lambdas
+    else:
+        lambdas = None
+
+    chi2, gradient = compute_hypergradient(
+        pars_ff_fm, lambdas, np.log10(alpha), np.log10(beta), np.log10(gamma), data_train, regularization,
+        which_set, data_test, derivatives_funs)
+
+    return mini, chi2, gradient
+
+# %% D6. hyper_function
 
 
 """
@@ -2377,101 +2437,69 @@ def hyper_function(
     else:
         log10_gamma = np.inf
 
-    print('\nlog10 hyperpars: ', [(map_hyperpars[i], log10_hyperpars[i]) for i in range(len(map_hyperpars))])
+    print('\nlog10 hyperpars: ', [(str(map_hyperpars[i]), log10_hyperpars[i]) for i in range(len(map_hyperpars))])
 
-    if not np.isinf(log10_alpha):
-        alpha = np.float64(10**log10_alpha)
-    else:
-        alpha = np.inf
+    alpha = np.float64(10**log10_alpha)
+    beta = np.float64(10**log10_beta)
+    gamma = np.float64(10**log10_gamma)
 
     names_ff_pars = []
 
-    if not np.isinf(log10_beta):
-        beta = np.float64(10**log10_beta)
+    if not np.isinf(beta):
         names_ff_pars = data['global'].names_ff_pars
         pars0 = np.zeros(len(names_ff_pars))
     else:
-        beta = np.inf
         pars0 = np.array([])
 
-    if not np.isinf(log10_gamma):
-        gamma = np.float64(10**log10_gamma)
+    if not np.isinf(gamma):
         pars0 = np.concatenate(([pars0, np.array(data['global'].forward_coeffs_0)]))
-    else:
-        gamma = np.inf
 
     """ for each seed: """
 
-    Results = {}
-    chi2 = []
-    gradient = []  # derivatives of chi2 w.r.t. (log10) hyper parameters
+    # Results = {}
+    # chi2 = []
+    # gradient = []  # derivatives of chi2 w.r.t. (log10) hyper parameters
 
-    for seed in test_obs.keys():
+    # args = (data, test_frames[i], test_obs[i], regularization, alpha, beta, gamma, starting_pars,
+    # which_set, derivatives_funs)
+    random_states = test_obs.keys()
 
-        """ 2. minimize loss function on training set to get optimal parameters """
+    output = Parallel(n_jobs=len(test_obs))(delayed(mini_and_chi2_and_grad)(
+        data, test_frames[seed], test_obs[seed], regularization, alpha, beta, gamma, starting_pars,
+        which_set, derivatives_funs) for seed in random_states)
 
-        out = select_traintest(data, test_frames=test_frames[seed], test_obs=test_obs[seed])
-        data_train = out[0]
-        data_test = out[1]
+    Results = [output[i][0] for i in range(len(random_states))]
+    chi2 = [output[i][1] for i in range(len(random_states))]
+    gradient = [output[i][2] for i in range(len(random_states))]
 
-        mini = minimizer(
-            data_train, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma, starting_pars=starting_pars)
+    av_chi2 = np.mean(np.array(chi2))
 
-        if hasattr(mini, 'pars'):
-            pars_ff_fm = mini.pars
-        else:
-            pars_ff_fm = None
-        if hasattr(mini, 'min_lambdas'):
-            lambdas = mini.min_lambdas
-        else:
-            lambdas = None
-
-        Results[seed] = mini
-
-        # Details_train = loss_function(pars_ff_fm, data_train, regularization, alpha, beta, gamma, lambdas, if_save = True)
-        # Details_test = loss_function(pars_ff_fm, data_test, regularization, alpha, beta, gamma, lambdas, if_save = True)
-
-        # my_keys = [x for x in dir(Details_train) if not x.startswith('__')]
-        # for k in my_keys: setattr(Results[seed], k+'_train', getattr(Details_train, k))
-
-        # my_keys = [x for x in dir(Details_test) if not x.startswith('__')]
-        # for k in my_keys: setattr(Results[seed], k+'_test', getattr(Details_test, k))
-
-        out = compute_hypergradient(
-            pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
-            which_set, data_test, derivatives_funs)
-
-        chi2.append(out[0])
-        gradient.append(out[1])
-
-    tot_chi2 = np.sum(np.array(chi2))
-
-    tot_gradient = []
+    av_gradient = []
 
     if 'alpha' in map_hyperpars:
-        tot_gradient.append(np.sum(np.array([gradient[k].dchi2_dlogalpha for k in range(len(test_obs.keys()))])))
+        av_gradient.append(np.mean(np.array([gradient[k].dchi2_dlogalpha for k in range(len(random_states))])))
     if 'beta' in map_hyperpars:
-        tot_gradient.append(np.sum(np.array([gradient[k].dchi2_dlogbeta for k in range(len(test_obs.keys()))])))
+        av_gradient.append(np.mean(np.array([gradient[k].dchi2_dlogbeta for k in range(len(random_states))])))
     if 'gamma' in map_hyperpars:
-        tot_gradient.append(np.sum(np.array([gradient[k].dchi2_dloggamma for k in range(len(test_obs.keys()))])))
+        av_gradient.append(np.mean(np.array([gradient[k].dchi2_dloggamma for k in range(len(random_states))])))
 
-    tot_gradient = np.array(tot_gradient)
+    av_gradient = numpy.array(av_gradient)
 
-    print('tot chi2: ', tot_chi2)
-    print('tot gradient: ', tot_gradient)
+    print('av. chi2: ', av_chi2)
+    print('av. gradient: ', av_gradient)
 
     global hyper_intermediate
-    hyper_intermediate.tot_chi2.append(tot_chi2)
-    hyper_intermediate.tot_gradient.append(tot_gradient)
+    hyper_intermediate.av_chi2.append(av_chi2)
+    hyper_intermediate.av_gradient.append(av_gradient)
     hyper_intermediate.log10_hyperpars.append(log10_hyperpars)
 
-    return tot_chi2, tot_gradient, Results
+    return av_chi2, av_gradient, Results
 
-# %% D6. hyper_minimization
+# %% D7. hyper_minimizer
 
 
 """
-This function **hyper_minimization** optimizes hyper-parameters by minimizing the selected chi2 (training, valdiation or test)
+This function **hyper_minimizer** optimizes hyper-parameters by minimizing the selected chi2 (training, valdiation or test)
 over different splitting of the full data set into training/test set.
 
 Input values:
@@ -2488,20 +2516,30 @@ Input values:
 
 
 def hyper_minimizer(
-        data, starting_alpha=np.inf, starting_beta=np.inf, starting_gamma=np.inf, regularization=None,
-        random_states=1, which_set='validation', gtol=0.5, starting_pars=None):
+        data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf, regularization=None,
+        random_states=1, which_set='validation', gtol=0.5, ftol=0.05, starting_pars=None):
+
+    if starting_alpha <= 0:
+        print('alpha cannot be negative or zero; starting with alpha = 1')
+        starting_alpha = 1
+    if starting_beta <= 0:
+        print('acting on orders of magnitude, beta cannot be negative or zero; starting with beta = 1')
+        starting_beta = 1
+    if starting_gamma <= 0:
+        print('acting on orders of magnitude, gamma cannot be negative or zero; starting with gamma = 1')
+        starting_gamma = 1
 
     class hyper_intermediate_class():
         def __init__(self):
-            self.tot_chi2 = []
-            self.tot_gradient = []
+            self.av_chi2 = []
+            self.av_gradient = []
             self.log10_hyperpars = []
 
     global hyper_intermediate
     hyper_intermediate = hyper_intermediate_class()
 
     if type(random_states) is int:
-        random_states = np.arange(random_states)
+        random_states = [i for i in range(random_states)]
 
     """ select training and test set (several seeds) """
 
@@ -2538,6 +2576,16 @@ def hyper_minimizer(
     log10_hyperpars0 = []
     map_hyperpars = []
 
+    if starting_alpha <= 0:
+        print("error: starting alpha is <= zero! let's start with alpha = 1")
+        starting_alpha = 1
+    if starting_beta < 0:
+        print("error: starting beta is negative! let's start with beta = 1")
+        starting_beta = 1
+    if starting_gamma < 0:
+        print("error: starting gamma is negative! let's start with gamma = 1")
+        starting_gamma = 1
+
     if not np.isinf(starting_alpha):
         log10_hyperpars0.append(np.log10(starting_alpha))
         map_hyperpars.append('alpha')
@@ -2551,16 +2599,29 @@ def hyper_minimizer(
     # minimize
     args = (map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs, starting_pars)
 
-    hyper_mini = minimize(hyper_function, log10_hyperpars0, args=args, method='BFGS', jac=True, options={'gtol': gtol})
+    # just to check:
+    # out = hyper_function(log10_hyperpars0, map_hyperpars, data, regularization, test_obs, test_frames, which_set,
+    # derivatives_funs, starting_pars)
 
-    hyper_intermediate.tot_chi2 = np.array(hyper_intermediate.tot_chi2)
-    hyper_intermediate.tot_gradient = np.array(hyper_intermediate.tot_gradient)
+    """ see https://docs.scipy.org/doc/scipy/reference/optimize.minimize-bfgs.html """
+    """ with L-BFGS-B you can use ftol (stop when small variation of hyperparameters), useful for rough functions """
+    if ftol is None:
+        method = 'BFGS'
+        options = {'gtol': gtol, 'maxiter': 10}
+    else:
+        method = 'L-BFGS-B'
+        options = {'gtol': gtol, 'maxiter': 10, 'ftol': ftol}
+
+    hyper_mini = minimize(hyper_function, log10_hyperpars0, args=args, method=method, jac=True, options=options)
+
+    hyper_intermediate.av_chi2 = np.array(hyper_intermediate.av_chi2)
+    hyper_intermediate.av_gradient = np.array(hyper_intermediate.av_gradient)
     hyper_intermediate.log10_hyperpars = np.array(hyper_intermediate.log10_hyperpars)
     hyper_mini['intermediate'] = hyper_intermediate
 
     return hyper_mini
 
-# %% D7. MDRefinement
+# %% D8. MDRefinement
 
 
 """
@@ -2583,42 +2644,146 @@ Required inputs:
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
-        random_states=5, which_set: str = 'validation', gtol: float = 0.5):
+        random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05):
 
     data = load_data(infos, stride=stride)
 
     print('\nsearch for optimal hyperparameters ...')
 
-    mini = hyper_minimizer(data, starting_alpha, starting_beta, starting_gamma, regularization, random_states, which_set, gtol)
+    mini = hyper_minimizer(
+        data, starting_alpha, starting_beta, starting_gamma, regularization,
+        random_states, which_set, gtol, ftol)
+
     optimal_log10_hyperpars = mini.x
 
+    optimal_hyperpars = {}
     i = 0
     s = ''
     if not np.isinf(starting_alpha):
-        optimal_alpha = 10**optimal_log10_hyperpars[i]
-        s = s + 'alpha: ' + str(optimal_alpha) + ' '
+        alpha = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['alpha'] = alpha
+        s = s + 'alpha: ' + str(alpha) + ' '
         i += 1
     else:
-        optimal_alpha = starting_alpha
+        alpha = starting_alpha
     if not np.isinf(starting_beta):
-        optimal_beta = 10**optimal_log10_hyperpars[i]
-        s = s + 'beta: ' + str(optimal_beta) + ' '
+        beta = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['beta'] = beta
+        s = s + 'beta: ' + str(beta) + ' '
         i += 1
     else:
-        optimal_beta = starting_beta
+        beta = starting_beta
     if not np.isinf(starting_gamma):
-        optimal_gamma = 10**optimal_log10_hyperpars[i]
-        s = s + 'gamma: ' + str(optimal_gamma)
+        gamma = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['gamma'] = gamma
+        s = s + 'gamma: ' + str(gamma)
         # i += 1
     else:
-        optimal_gamma = starting_gamma
+        gamma = starting_gamma
 
     print('\noptimal hyperparameters: ' + s)
-    print('\nrefinement with optimal hyperparameters on the full data set')
+    print('\nrefinement with optimal hyperparameters...')  # on the full data set')
 
-    # for the minimization with optimal hyper-parameters use full data set
-    data = load_data(infos)
+    # # for the minimization with optimal hyper-parameters use full data set
+    # data = load_data(infos)
 
-    Result = minimizer(data, regularization=regularization, alpha=optimal_alpha, beta=optimal_beta, gamma=optimal_gamma)
+    Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma)
+    Result.optimal_hyperpars = optimal_hyperpars
+    Result.hyper_minimization = mini
+
+    print('\ndone')
+
+    """ save results in txt files """
+    if not np.isinf(beta):
+        coeff_names = infos['global']['names_ff_pars']
+    else:
+        coeff_names = []
+    if not np.isinf(gamma):
+        coeff_names = coeff_names + list(data['global'].forward_coeffs_0.keys())
+
+    input_values = {
+        'stride': stride, 'starting_alpha': starting_alpha, 'starting_beta': starting_beta,
+        'starting_gamma': starting_gamma, 'random_states': random_states, 'which_set': which_set,
+        'gtol': gtol, 'ftol': ftol}
+
+    save_txt(input_values, Result, coeff_names, folder_name='Result')
 
     return Result
+
+
+def unwrap_2dict(my_2dict):
+
+    res = []
+    keys = []
+
+    for key1, value1 in my_2dict.items():
+        for key2, value2 in value1.items():
+
+            key = key1 + ' ' + key2
+
+            length = np.array(value2).shape[0]
+            res.extend(list(value2))
+
+            if length > 1:
+                names = [key + ' ' + str(i) for i in range(length)]
+            else:
+                names = [key]
+
+            keys.extend(names)
+
+    return res, keys
+
+
+def save_txt(input_values, Result, coeff_names, folder_name='Result'):
+
+    """ use date_time to generate unique file name (assumption: single file name at the same time) """
+    s = datetime.datetime.now()
+    date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
+
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+
+    """0. save input values """
+    temp = pandas.DataFrame(list(input_values.values()), index=list(input_values.keys()), columns=[date]).T
+    temp.to_csv(folder_name + '/%s_input' % date)
+
+    """ 1. save general results """
+
+    my_dict = {}
+    for k in Result.optimal_hyperpars.keys():
+        my_dict['optimal ' + k] = Result.optimal_hyperpars[k]
+    my_dict['success'] = Result.hyper_minimization.success
+
+    # force-field and forward-model parameters
+    for i, k in enumerate(coeff_names):
+        my_dict[k] = Result.pars[i]
+
+    my_dict['loss'] = Result.loss
+    my_dict['time'] = Result.time
+
+    title = list(my_dict.keys())
+    values = list(my_dict.values())
+
+    df = pandas.DataFrame(values, index=title, columns=[date]).T
+    df.to_csv(folder_name + '/%s_result' % date)
+
+    """ 2. save search for optimal hyperparameters """
+
+    inter = vars(Result.hyper_minimization['intermediate'])
+
+    for i, name in enumerate(Result.optimal_hyperpars.keys()):
+        inter['av_gradient ' + name] = inter['av_gradient'][:, i]
+        inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
+    del inter['av_gradient'], inter['log10_hyperpars']
+
+    df = pandas.DataFrame(inter)
+    df.to_csv(folder_name + '/%s_hyper_search' % date)
+
+    """ 3. save optimal lambdas """
+
+    flat_lambdas = unwrap_2dict(Result.min_lambdas)
+    df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1], columns=[date]).T
+
+    df.to_csv(folder_name + '/%s_min_lambdas' % date)
+
+    return
