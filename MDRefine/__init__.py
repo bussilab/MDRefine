@@ -11,7 +11,8 @@ _required_ = [
     'numpy',
     'pandas',
     'jax',
-    'jaxlib'
+    'jaxlib',
+    'joblib'
 ]
 
 
