@@ -2776,7 +2776,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
         inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
     del inter['av_gradient'], inter['log10_hyperpars']
 
-    df = pandas.DataFrame(inter, columns=[date])
+    df = pandas.DataFrame(inter)
     df.to_csv(folder_name + '/%s_hyper_search' % date)
 
     """ 3. save optimal lambdas """
