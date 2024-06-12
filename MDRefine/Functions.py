@@ -2644,7 +2644,8 @@ Required inputs:
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
-        random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05):
+        random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05, 
+        results_folder_name: str = 'results'):
 
     data = load_data(infos, stride=stride)
 
@@ -2706,7 +2707,7 @@ def MDRefinement(
         'starting_gamma': starting_gamma, 'random_states': random_states, 'which_set': which_set,
         'gtol': gtol, 'ftol': ftol}
 
-    save_txt(input_values, Result, coeff_names, folder_name='Result')
+    save_txt(input_values, Result, coeff_names, folder_name=results_folder_name)
 
     return Result
 
