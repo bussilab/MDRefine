@@ -27,8 +27,8 @@ def description():
         file_content = f.read()
     module = ast.parse(file_content)
     for node in ast.iter_child_nodes(module):
-        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Str):
-            return node.value.s.split('\n')[0]
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+            return node.value.value.split('\n')[0]
     return ""
 
 with open('conda/meta.yaml.in') as f:
