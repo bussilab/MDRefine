@@ -1,6 +1,22 @@
 import re
 import os
-from MDRefine import __version__
+import ast
+
+def extract_variable(file_path, variable_name):
+    with open(file_path, 'r') as f:
+        file_content = f.read()
+    module = ast.parse(file_content)
+    for node in ast.iter_child_nodes(module):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == variable_name:
+                    return ast.literal_eval(node.value)
+    raise ValueError(f"Variable '{variable_name}' not found in {file_path}")
+
+def version():
+    return extract_variable('MDRefine/_version.py', '__version__')
+
+__version__=version()
 
 def confirm():
     cont=True
