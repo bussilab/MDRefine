@@ -170,7 +170,7 @@ class data_global_class:
         self.system_names = info_global['system_names']
 
         if 'forward_coeffs' in info_global.keys():
-            temp = pandas.read_csv(path_directory + '/' + info_global['forward_coeffs'], header=None)
+            temp = pandas.read_csv(path_directory + info_global['forward_coeffs'], header=None)
             temp.index = temp.iloc[:, 0]
             self.forward_coeffs_0 = temp.iloc[:, 1]
             # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
@@ -450,6 +450,8 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
     new_weights = np.exp(-correction)*weights
 
+    if np.isnan(new_weights).any():
+        return new_weights, new_weights.shape
     assert not np.isnan(new_weights).any(), 'Error: new_weights contains None'
 
     logZ = np.log(np.sum(new_weights))-shift
@@ -1478,7 +1480,10 @@ class class_test:
         # B. split force-field terms
         if hasattr(data_sys, 'f'):
             self.ff_correction = data_sys.ff_correction
-            self.f = data_sys.f[test_frames_sys]
+            try:
+                self.f = data_sys.f[test_frames_sys, :]
+            except:
+                self.f = data_sys.f[list(test_frames_sys), :]
 
         # C. split experimental values gexp, normg_mean and normg_std, observables g
 
@@ -2417,7 +2422,7 @@ Global: hyper_intermediate, in order to follow steps of minimization.
 
 def hyper_function(
         log10_hyperpars, map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs,
-        starting_pars):
+        starting_pars, n_parallel_jobs):
 
     """ 0. input values """
 
@@ -2464,7 +2469,10 @@ def hyper_function(
     # which_set, derivatives_funs)
     random_states = test_obs.keys()
 
-    output = Parallel(n_jobs=len(test_obs))(delayed(mini_and_chi2_and_grad)(
+    if n_parallel_jobs is None:
+        n_parallel_jobs = len(test_obs)
+
+    output = Parallel(n_jobs=n_parallel_jobs)(delayed(mini_and_chi2_and_grad)(
         data, test_frames[seed], test_obs[seed], regularization, alpha, beta, gamma, starting_pars,
         which_set, derivatives_funs) for seed in random_states)
 
@@ -2517,7 +2525,7 @@ Input values:
 
 def hyper_minimizer(
         data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf, regularization=None,
-        random_states=1, which_set='validation', gtol=0.5, ftol=0.05, starting_pars=None):
+        random_states=1, which_set='validation', gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None):
 
     if starting_alpha <= 0:
         print('alpha cannot be negative or zero; starting with alpha = 1')
@@ -2597,7 +2605,9 @@ def hyper_minimizer(
         map_hyperpars.append('gamma')
 
     # minimize
-    args = (map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs, starting_pars)
+    args = (
+        map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs,
+        starting_pars, n_parallel_jobs)
 
     # just to check:
     # out = hyper_function(log10_hyperpars0, map_hyperpars, data, regularization, test_obs, test_frames, which_set,
@@ -2644,8 +2654,8 @@ Required inputs:
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
-        random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05, 
-        results_folder_name: str = 'results'):
+        random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
+        results_folder_name: str = 'results', n_parallel_jobs: float = None):
 
     data = load_data(infos, stride=stride)
 
@@ -2653,7 +2663,7 @@ def MDRefinement(
 
     mini = hyper_minimizer(
         data, starting_alpha, starting_beta, starting_gamma, regularization,
-        random_states, which_set, gtol, ftol)
+        random_states, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs)
 
     optimal_log10_hyperpars = mini.x
 
@@ -2750,41 +2760,70 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
 
     """ 1. save general results """
 
+    # select information to be saved in txt files
+
+    title = list(vars(Result).keys())
+
+    remove_list = [
+        'intermediates', 'abs_difference', 'av_g', 'logZ_new', 'weights_new', 'abs_difference_test',
+        'av_g_test', 'logZ_new_test', 'weights_new_test', 'avg_new_obs', 'weights_P', 'logZ_P', 'weights_P_test',
+        'logZ_P_test']
+
     my_dict = {}
-    for k in Result.optimal_hyperpars.keys():
-        my_dict['optimal ' + k] = Result.optimal_hyperpars[k]
-    my_dict['success'] = Result.hyper_minimization.success
+    for s in title:
+        if s not in remove_list:
+            if s == 'pars':
+                for i, k in enumerate(coeff_names):
+                    my_dict[k] = Result.pars[i]
+            elif s == 'mini':
+                my_dict['success'] = Result.mini.success
+                my_dict['norm gradient'] = np.linalg.norm(Result.mini.jac)
 
-    # force-field and forward-model parameters
-    for i, k in enumerate(coeff_names):
-        my_dict[k] = Result.pars[i]
+            elif s == 'min_lambdas':
+                flat_lambdas = unwrap_2dict(Result.min_lambdas)
+                df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1], columns=[date]).T
+                df.to_csv(folder_name + '/%s_min_lambdas' % date)
 
-    my_dict['loss'] = Result.loss
-    my_dict['time'] = Result.time
+            elif s == 'minis':
+                for name_sys in Result.minis.keys():
+                    my_dict['ER success %s' % name_sys] = Result.minis[name_sys].success
+            elif s == 'D_KL_alpha' or s == 'D_KL_alpha_test':
+                for name_sys in vars(Result)[s].keys():
+                    my_dict[s + '_' + name_sys] = vars(Result)[s][name_sys]
+            elif s == 'chi2' or s == 'chi2_test' or s == 'chi2_new_obs':
+                for name_sys in vars(Result)[s].keys():
+                    my_dict[s + '_' + name_sys] = np.sum(np.array(list(vars(Result)[s][name_sys].values())))
+            elif s == 'reg_ff' or s == 'reg_ff_test':
+                if type(vars(Result)[s]) is dict:
+                    for k in vars(Result)[s].keys():
+                        my_dict[s + '_' + k] = vars(Result)[s][k]
+                else:
+                    my_dict[s] = vars(Result)[s]
+
+            # optimization of hyper parameters
+            elif s == 'optimal_hyperpars':
+                for k in Result.optimal_hyperpars.keys():
+                    my_dict['optimal ' + k] = Result.optimal_hyperpars[k]
+            elif s == 'hyper_minimization':
+                my_dict['hyper_mini success'] = Result.hyper_minimization.success
+
+                inter = vars(Result.hyper_minimization['intermediate'])
+
+                for i, name in enumerate(Result.optimal_hyperpars.keys()):
+                    inter['av_gradient ' + name] = inter['av_gradient'][:, i]
+                    inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
+                del inter['av_gradient'], inter['log10_hyperpars']
+
+                df = pandas.DataFrame(inter)
+                df.to_csv(folder_name + '/%s_hyper_search' % date)
+
+            else:
+                my_dict[s] = vars(Result)[s]
 
     title = list(my_dict.keys())
     values = list(my_dict.values())
 
     df = pandas.DataFrame(values, index=title, columns=[date]).T
     df.to_csv(folder_name + '/%s_result' % date)
-
-    """ 2. save search for optimal hyperparameters """
-
-    inter = vars(Result.hyper_minimization['intermediate'])
-
-    for i, name in enumerate(Result.optimal_hyperpars.keys()):
-        inter['av_gradient ' + name] = inter['av_gradient'][:, i]
-        inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
-    del inter['av_gradient'], inter['log10_hyperpars']
-
-    df = pandas.DataFrame(inter)
-    df.to_csv(folder_name + '/%s_hyper_search' % date)
-
-    """ 3. save optimal lambdas """
-
-    flat_lambdas = unwrap_2dict(Result.min_lambdas)
-    df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1], columns=[date]).T
-
-    df.to_csv(folder_name + '/%s_min_lambdas' % date)
 
     return
