@@ -450,8 +450,6 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
     new_weights = np.exp(-correction)*weights
 
-    if np.isnan(new_weights).any():
-        return new_weights, new_weights.shape
     assert not np.isnan(new_weights).any(), 'Error: new_weights contains None'
 
     logZ = np.log(np.sum(new_weights))-shift
