@@ -481,7 +481,6 @@ Output:
 def gamma_function(lambdas: np.array, g: np.array, gexp: np.array, weights: np.array, alpha: float, if_gradient: bool = False):
 
     correction_lambdas = np.matmul(g, lambdas)
-
     newweights, logZlambda = compute_new_weights(weights, correction_lambdas)
 
     gammaf = np.matmul(lambdas, gexp[:, 0]) + 1/2*alpha*np.matmul(lambdas**2, gexp[:, 1]**2) + logZlambda
@@ -1133,8 +1132,8 @@ def loss_function_and_grad(
         gtol_inn: float, boundaries: dict, gradient_fun):
 
     print('New evaluation:')
-    print('alpha, beta, gamma: ', alpha, beta, gamma)
-    print('pars: ', pars)
+    # print('alpha, beta, gamma: ', alpha, beta, gamma)
+    # print('pars: ', pars)
 
     loss = loss_function(pars, data, regularization, alpha, beta, gamma, None, gtol_inn, False, boundaries)
 
