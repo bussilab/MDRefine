@@ -1452,8 +1452,10 @@ Input values:
     otherwise it is randomly taken); alternatively, you can pass the dictionaries **test_obs** and/or **test_frames**;
 - (optionally) **test_frames** and **test_obs** (dicts);
 - (optionally) **if_all_frames** (boolean, False by default; if True then use all frames for new observables in the test set);
-- (optionally) **pos_replicas** (dict for positions of replicas,
-    in order to split frames following continuous trajectories in replica exchange).
+- (optionally) **replica_infos** (dict infos, including: 'n_temp_replica', 'path_directory', stride) in order to split frames
+    following continuous trajectories in replica exchange, if you wish; it will read replica_temp.npy files
+    with shape (n_frames, n_replicas) containing numbers from 0 to n_replicas-1 which indicate corresponding
+    TEMPERATURES (for each replica index in axis=1).
 
 Output:
 - **data_train** and **data_test**: the splitting into data_train and data_test;
@@ -1614,7 +1616,7 @@ class class_train:
 
 def select_traintest(
         data, *, test_frames_size: float = 0.2, test_obs_size: float = 0.2, random_state: int = None,
-        test_frames: dict = None, test_obs: dict = None, if_all_frames: bool = False, pos_replicas: dict = None):
+        test_frames: dict = None, test_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None):
 
     # PART 1: IF NONE, SELECT TEST OBSERVABLES AND TEST FRAMES
 
@@ -1655,39 +1657,46 @@ def select_traintest(
     if test_frames is None:
 
         test_frames = {}
+        test_replicas = {}
 
-        # if you have demuxed trajectories, select replicas and the corresponding frames
+        for name_sys in system_names:
 
-        if pos_replicas is not None:
+            if 'n_temp_replica' in replica_infos[name_sys].keys():
+                # if you have demuxed trajectories, select replicas and the corresponding frames
+                # pos_replcias has the indices corresponding to the different replicas
 
-            n_replicas = {}
-            n_replicas_test = {}
-            test_rep = {}
+                path = replica_infos['global']['path_directory']
+                stride = replica_infos['global']['stride']
+                n_temp = replica_infos[name_sys]['n_temp_replica']
 
-            for name_sys in system_names:
-                n_replicas[name_sys] = len(pos_replicas[name_sys])
-                n_replicas_test[name_sys] = np.int16(np.round(test_frames_size*n_replicas))
+                replica_temp = np.load('%s/%s/replica_temp.npy' % (path, name_sys))[::stride]
 
-                test_rep[name_sys] = np.sort(rng.choice(n_replicas[name_sys], n_replicas_test[name_sys], replace=False))
-                # except:
-                # test_rep[name_sys] = random.choice(key, n_replicas[name_sys], (n_replicas_test[name_sys],), replace = False)
+                n_replicas = len(replica_temp.T)
+                replica_index = replica_temp.argsort(axis=1)
 
-                fin = []
-                for i in range(n_replicas_test[name_sys]):
-                    fin = np.concatenate((fin, pos_replicas[name_sys][test_rep[name_sys][i]].flatten()), axis=0)
+                pos_replicas = []
+                for i in range(n_replicas):
+                    pos_replicas.append(np.argwhere(replica_index[:, n_temp] == i)[:, 0])
+
+                n_replicas_test = np.int16(np.round(test_frames_size*n_replicas))
+                test_replicas[name_sys] = np.sort(rng.choice(n_replicas, n_replicas_test, replace=False))
+
+                fin = np.array([])
+                for i in range(n_replicas_test):
+                    fin = np.concatenate((fin, pos_replicas[test_replicas[name_sys][i]]))
                 test_frames[name_sys] = np.array(fin).astype(int)
                 del fin
 
-        else:
+            else:
 
-            n_frames_test = {}
-
-            for name_sys in system_names:
-                n_frames_test[name_sys] = np.int16(np.round(test_frames_size*data[name_sys].n_frames))
-                test_frames[name_sys] = np.sort(rng.choice(data[name_sys].n_frames, n_frames_test[name_sys], replace=False))
+                n_frames_test = np.int16(np.round(test_frames_size*data[name_sys].n_frames))
+                test_frames[name_sys] = np.sort(rng.choice(data[name_sys].n_frames, n_frames_test, replace=False))
                 # except:
                 # test_frames[name_sys] = random.choice(key, data[name_sys].n_frames,(n_frames_test[name_sys],),
                 # replace = False)
+
+        if test_replicas == {}:
+            del test_replicas
 
     # 1C. OBSERVABLES TEST
 
@@ -1780,10 +1789,10 @@ def select_traintest(
         for s2 in my_list1:
             test_obs[s1][s2] = np.int64(np.array([]))
 
-    if pos_replicas is None:
-        return data_train, data_test, test_obs, test_frames
-    else:
-        return data_train, data_test, test_obs, test_rep
+    # if pos_replicas is None:
+    return data_train, data_test, test_obs, test_frames
+    # else:
+    #     return data_train, data_test, test_obs, test_frames, test_rep
 
 # %% C12. validation
 
