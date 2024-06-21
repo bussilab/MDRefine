@@ -2673,7 +2673,7 @@ def MDRefinement(
 
     mini = hyper_minimizer(
         data, starting_alpha, starting_beta, starting_gamma, regularization,
-        random_states, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs)
+        random_states, infos, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs)
 
     optimal_log10_hyperpars = mini.x
 
