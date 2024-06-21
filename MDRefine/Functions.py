@@ -1661,7 +1661,7 @@ def select_traintest(
 
         for name_sys in system_names:
 
-            if 'n_temp_replica' in replica_infos[name_sys].keys():
+            if (replica_infos is not None) and ('n_temp_replica' in replica_infos[name_sys].keys()):
                 # if you have demuxed trajectories, select replicas and the corresponding frames
                 # pos_replcias has the indices corresponding to the different replicas
 
@@ -2533,8 +2533,9 @@ Input values:
 
 
 def hyper_minimizer(
-        data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf, regularization=None,
-        random_states=1, which_set='validation', gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None):
+        data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf,
+        regularization=None, random_states=1, replica_infos=None, which_set='validation',
+        gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None):
 
     if starting_alpha <= 0:
         print('alpha cannot be negative or zero; starting with alpha = 1')
@@ -2564,7 +2565,7 @@ def hyper_minimizer(
     test_frames = {}
 
     for seed in random_states:
-        out = select_traintest(data, random_state=seed)
+        out = select_traintest(data, random_state=seed, replica_infos=replica_infos)
         test_obs[seed] = out[2]
         test_frames[seed] = out[3]
 
