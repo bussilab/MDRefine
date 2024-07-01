@@ -350,13 +350,13 @@ def load_data(infos, *, stride=1):
 
         data['global'].cycle_names = infos['global']['cycle_names']
 
-        logZs = pandas.read_csv(path_directory+'alchemical/logZs', index_col=0)
+        logZs = pandas.read_csv(path_directory + 'alchemical/logZs', index_col=0, header=None)
 
         for name in infos['global']['cycle_names']:
             for s in ['MD', 'MS', 'AD', 'AS']:
                 key = name+'_'+s
                 if key in logZs.index:
-                    data[key].logZ = logZs.loc[key][0]
+                    data[key].logZ = logZs.loc[key][1]
                 else:
                     data[key].logZ = 0.0
 
@@ -454,6 +454,9 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
     logZ = np.log(np.sum(new_weights))-shift
     new_weights = new_weights/np.sum(new_weights)
+
+    # message = 'Error: logZ is %s; new_weights is (length %s): %s'
+    # assert (not np.isnan(logZ)) and (not np.isinf(logZ)), message % (logZ, len(new_weights), new_weights)
 
     return new_weights, logZ
 
