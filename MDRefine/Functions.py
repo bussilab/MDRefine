@@ -455,9 +455,6 @@ def compute_new_weights(weights: np.array, correction: np.array):
     logZ = np.log(np.sum(new_weights))-shift
     new_weights = new_weights/np.sum(new_weights)
 
-    # message = 'Error: logZ is %s; new_weights is (length %s): %s'
-    # assert (not np.isnan(logZ)) and (not np.isinf(logZ)), message % (logZ, len(new_weights), new_weights)
-
     return new_weights, logZ
 
 # %% B3. gamma_function
@@ -886,7 +883,7 @@ def loss_function(
 
     if not np.isinf(beta):
         correction_ff = {}
-        logZ_P = {}
+    logZ_P = {}
 
     g = {}
 
@@ -905,6 +902,7 @@ def loss_function(
                 logZ_P[name_sys] = 0
         else:
             weights_P[name_sys] = data[name_sys].weights
+            logZ_P[name_sys] = 0
 
         """ 1b. if np.isinf(gamma): g is re-computed observables data.g through updated forward model
             (notice you also have some observables directly as data.g without updating of forward model);
@@ -1339,10 +1337,11 @@ def minimizer(
 
         Result.loss = loss_function(pars_ff_fm, data, regularization, alpha, beta, gamma, None, gtol_inn, False, bounds)
 
-        # since lambdas is global, it is updated inside loss_function with optimal value
-        min_lambdas = lambdas
-        Result.min_lambdas = deconvolve_lambdas(data, min_lambdas)
-        Result.minis = minis
+        if not np.isinf(alpha):
+            # since lambdas is global, it is updated inside loss_function with optimal value
+            min_lambdas = lambdas
+            Result.min_lambdas = deconvolve_lambdas(data, min_lambdas)
+            Result.minis = minis
 
     else:
 
@@ -1664,7 +1663,7 @@ def select_traintest(
 
         for name_sys in system_names:
 
-            if (replica_infos is not None) and ('n_temp_replica' in replica_infos[name_sys].keys()):
+            if (replica_infos is not None) and (hasattr(replica_infos, name_sys)) and ('n_temp_replica' in replica_infos[name_sys].keys()):
                 # if you have demuxed trajectories, select replicas and the corresponding frames
                 # pos_replcias has the indices corresponding to the different replicas
 
