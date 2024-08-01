@@ -2629,10 +2629,10 @@ def hyper_minimizer(
     """ with L-BFGS-B you can use ftol (stop when small variation of hyperparameters), useful for rough functions """
     if ftol is None:
         method = 'BFGS'
-        options = {'gtol': gtol, 'maxiter': 10}
+        options = {'gtol': gtol, 'maxiter': 20}
     else:
         method = 'L-BFGS-B'
-        options = {'gtol': gtol, 'maxiter': 10, 'ftol': ftol}
+        options = {'gtol': gtol, 'maxiter': 20, 'ftol': ftol}
 
     hyper_mini = minimize(hyper_function, log10_hyperpars0, args=args, method=method, jac=True, options=options)
 
