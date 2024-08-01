@@ -179,6 +179,22 @@ class data_global_class:
             # else:
             #     self.forward_coeffs_0 = temp.squeeze()
 
+        if 'names_ff_pars' in info_global.keys():
+            self.names_ff_pars = info_global['names_ff_pars']
+
+        if 'cycle_names' in info_global.keys():
+            self.cycle_names = info_global['cycle_names']
+
+    def tot_n_experiments(self, data):
+        
+        tot = 0
+
+        for k in self.system_names:
+            for item in data[k].n_experiments.values():
+                tot += item
+        return tot
+
+
 
 class data_class:
     def __init__(self, info, path_directory, name_sys):
@@ -307,7 +323,11 @@ class data_class:
 
         if ('ff_correction' in info.keys()) and (info['ff_correction'] is not None):
 
-            self.ff_correction = info['ff_correction']
+            if info['ff_correction'] == 'linear':
+                self.ff_correction = lambda pars, f: np.matmul(f, pars)
+            else:
+                self.ff_correction = info['ff_correction']
+
             ff_path = path_directory + '%s/ff_terms' % name_sys
             self.f = np.load(ff_path + '.npy')
 
@@ -348,19 +368,19 @@ def load_data(infos, *, stride=1):
 
     if 'cycle_names' in infos['global'].keys():
 
-        data['global'].cycle_names = infos['global']['cycle_names']
+        # data['global'].cycle_names = infos['global']['cycle_names']
 
         logZs = pandas.read_csv(path_directory + 'alchemical/logZs', index_col=0, header=None)
 
         for name in infos['global']['cycle_names']:
             for s in ['MD', 'MS', 'AD', 'AS']:
-                key = name+'_'+s
+                key = name + '_' + s
                 if key in logZs.index:
                     data[key].logZ = logZs.loc[key][1]
                 else:
                     data[key].logZ = 0.0
 
-        DDGs_exp = pandas.read_csv(path_directory+'alchemical/DDGs', index_col=0)
+        DDGs_exp = pandas.read_csv(path_directory + 'alchemical/DDGs', index_col=0)
 
         for name in infos['global']['cycle_names']:
             if name in infos.keys():
@@ -374,25 +394,25 @@ def load_data(infos, *, stride=1):
 
     data = check_and_skip(data, stride=stride)
 
-    def tot_n_experiments(data):
-        tot = 0
-        for k in system_names:
-            for item in data[k].n_experiments.values():
-                tot += item
-        return tot
+    # def tot_n_experiments(data):
+    #     tot = 0
+    #     for k in system_names:
+    #         for item in data[k].n_experiments.values():
+    #             tot += item
+    #     return tot
 
-    data['global'].system_names = system_names
-    data['global'].tot_n_experiments = tot_n_experiments
+    # data['global'].system_names = system_names
+    # data['global'].tot_n_experiments = tot_n_experiments
 
-    if hasattr(data['global'], 'ff_correction') and (data['global'].ff_correction == 'linear'):
-        list_names_ff_pars = []
-        for k in data['global'].system_names:
-            if hasattr(data[k], 'f'):
-                [list_names_ff_pars.append(x) for x in data[k].f.keys() if x not in list_names_ff_pars]
-        data['global'].names_ff_pars = list_names_ff_pars
+    # if hasattr(data['global'], 'ff_correction') and (data['global'].ff_correction == 'linear'):
+    #     list_names_ff_pars = []
+    #     for k in data['global'].system_names:
+    #         if hasattr(data[k], 'f'):
+    #             [list_names_ff_pars.append(x) for x in data[k].f.keys() if x not in list_names_ff_pars]
+    #     data['global'].names_ff_pars = list_names_ff_pars
 
-    elif 'names_ff_pars' in infos['global'].keys():
-        data['global'].names_ff_pars = infos['global']['names_ff_pars']
+    # elif 'names_ff_pars' in infos['global'].keys():
+    #     data['global'].names_ff_pars = infos['global']['names_ff_pars']
 
     print('done')
 
@@ -532,20 +552,20 @@ def normalize_observables(gexp, g, weights=None):
 # %% C1. compute_ff_correction
 
 
-"""
-This functions **compute_ff_correction** computes the force-field correction.
-BE CAREFUL to correctly match pars with f inside user-defined **ff_correction**.
-"""
+# """
+# This functions **compute_ff_correction** computes the force-field correction.
+# BE CAREFUL to correctly match pars with f inside user-defined **ff_correction**.
+# """
 
 
-def compute_ff_correction(ff_correction, f, pars):
+# def compute_ff_correction(ff_correction, f, pars):
 
-    if ff_correction == 'linear':
-        correction_ff = np.matmul(f, pars)
-    else:
-        correction_ff = ff_correction(pars, f)
+#     if ff_correction == 'linear':
+#         correction_ff = np.matmul(f, pars)
+#     else:
+#         correction_ff = ff_correction(pars, f)
 
-    return correction_ff
+#     return correction_ff
 
 # %% C2. compute_D_KL
 
@@ -710,7 +730,7 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         for s in ['_MD', '_MS', '_AD', '_AS']:
             if (cycle_name+s in logZ_P.keys()) and (not logZ_P[cycle_name+s] == 0):
                 # correction only on MD
-                new_av_DG[cycle_name+s] = -data[cycle_name+s].temperature*(logZ_P[cycle_name+s]+data[cycle_name+s].logZ)
+                new_av_DG[cycle_name+s] = -data[cycle_name+s].temperature*(logZ_P[cycle_name + s] + data[cycle_name + s].logZ)
             if cycle_name+s not in logZ_P:
                 logZ_P[cycle_name+s] = 0
 
@@ -893,7 +913,7 @@ def loss_function(
 
         if not np.isinf(beta):
             if hasattr(data[name_sys], 'ff_correction'):
-                correction_ff[name_sys] = compute_ff_correction(data[name_sys].ff_correction, data[name_sys].f, pars_ff)
+                correction_ff[name_sys] = data[name_sys].ff_correction(pars_ff, data[name_sys].f)
                 weights_P[name_sys], logZ_P[name_sys] = compute_new_weights(
                     data[name_sys].weights, correction_ff[name_sys]/data[name_sys].temperature)
 
@@ -2083,7 +2103,7 @@ def compute_hyperderivatives(
 
                 for name in system_names:
                     if hasattr(data[name], 'ff_correction'):
-                        correction_ff[name] = compute_ff_correction(data[name].ff_correction, data[name].f, pars_ff)
+                        correction_ff[name] = data[name].ff_correction(pars_ff, data[name].f)
                         correction_ff[name] = correction_ff[name]/data[name].temperature
                         weights_P[name], logZ_P[name] = compute_new_weights(data[name].weights, correction_ff[name])
 
