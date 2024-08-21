@@ -59,6 +59,7 @@ def check_and_skip(data, *, stride=1):
                 selected_obs = None
 
             out = my_data.forward_model(np.array(data['global'].forward_coeffs_0), my_data.forward_qs, selected_obs)
+
             if type(out) is tuple:
                 out = out[0]
 
@@ -286,7 +287,16 @@ class data_class:
 
         if 'forward_qs' in info.keys():
 
-            self.forward_model = info['forward_model']
+            # in this way, you can define forward model either with or without selected_obs (c)
+            def my_forward_model(a, b, c=None):
+                try:
+                    out = info['forward_model'](a, b, c)
+                except:
+                    assert c is None, 'you have selected_obs but the forward model is not suitably defined!'
+                    out = info['forward_model'](a, b)
+                return out
+
+            self.forward_model = my_forward_model # info['forward_model']
 
             self.forward_qs = {}
 
@@ -2563,10 +2573,10 @@ def hyper_minimizer(
         print('alpha cannot be negative or zero; starting with alpha = 1')
         starting_alpha = 1
     if starting_beta <= 0:
-        print('acting on orders of magnitude, beta cannot be negative or zero; starting with beta = 1')
+        print('required beta > 0; starting with beta = 1')
         starting_beta = 1
     if starting_gamma <= 0:
-        print('acting on orders of magnitude, gamma cannot be negative or zero; starting with gamma = 1')
+        print('required gamma > 0; starting with gamma = 1')
         starting_gamma = 1
 
     class hyper_intermediate_class():
