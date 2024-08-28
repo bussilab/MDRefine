@@ -1401,6 +1401,7 @@ def minimizer(
             def __init__(self, mini):
                 self.loss = mini.fun
                 self.pars = pars_ff_fm
+                # self.pars = dict(zip(names, pars_ff_fm))
                 self.mini = mini
 
         Result = Result_class(mini)
@@ -2810,6 +2811,13 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
         'intermediates', 'abs_difference', 'av_g', 'logZ_new', 'weights_new', 'abs_difference_test',
         'av_g_test', 'logZ_new_test', 'weights_new_test', 'avg_new_obs', 'weights_P', 'logZ_P', 'weights_P_test',
         'logZ_P_test']
+
+    if hasattr(Result, 'weights_new'):
+        for name_sys in Result.weights_new.keys():
+            np.save(folder_name + '/weights_new_%s' % name_sys, Result.weights_new[name_sys])
+    if hasattr(Result, 'weights_P'):
+        for name_sys in Result.weights_P.keys():
+            np.save(folder_name + '/weights_ff_%s' % name_sys, Result.weights_P[name_sys])
 
     my_dict = {}
     for s in title:
