@@ -2814,10 +2814,10 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
 
     if hasattr(Result, 'weights_new'):
         for name_sys in Result.weights_new.keys():
-            np.save(folder_name + '/weights_new_%s' % name_sys, Result.weights_new[name_sys])
+            np.save(folder_name + '/%s_weights_new_%s' % (date, name_sys), Result.weights_new[name_sys])
     if hasattr(Result, 'weights_P'):
         for name_sys in Result.weights_P.keys():
-            np.save(folder_name + '/weights_ff_%s' % name_sys, Result.weights_P[name_sys])
+            np.save(folder_name + '/%s_weights_ff_%s' % (date, name_sys), Result.weights_P[name_sys])
 
     my_dict = {}
     for s in title:
