@@ -2794,12 +2794,14 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     s = datetime.datetime.now()
     date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
 
+    folder_name = folder_name + '_' + date
+
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
 
     """0. save input values """
     temp = pandas.DataFrame(list(input_values.values()), index=list(input_values.keys()), columns=[date]).T
-    temp.to_csv(folder_name + '/%s_input' % date)
+    temp.to_csv(folder_name + '/input')
 
     """ 1. save general results """
 
@@ -2814,10 +2816,10 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
 
     if hasattr(Result, 'weights_new'):
         for name_sys in Result.weights_new.keys():
-            np.save(folder_name + '/%s_weights_new_%s' % (date, name_sys), Result.weights_new[name_sys])
+            np.save(folder_name + '/weights_new_%s' % name_sys, Result.weights_new[name_sys])
     if hasattr(Result, 'weights_P'):
         for name_sys in Result.weights_P.keys():
-            np.save(folder_name + '/%s_weights_ff_%s' % (date, name_sys), Result.weights_P[name_sys])
+            np.save(folder_name + '/weights_ff_%s' % name_sys, Result.weights_P[name_sys])
 
     my_dict = {}
     for s in title:
@@ -2832,7 +2834,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
             elif s == 'min_lambdas':
                 flat_lambdas = unwrap_2dict(Result.min_lambdas)
                 df = pandas.DataFrame(flat_lambdas[0], index=flat_lambdas[1], columns=[date]).T
-                df.to_csv(folder_name + '/%s_min_lambdas' % date)
+                df.to_csv(folder_name + '/min_lambdas')
 
             elif s == 'minis':
                 for name_sys in Result.minis.keys():
@@ -2865,7 +2867,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
                 del inter['av_gradient'], inter['log10_hyperpars']
 
                 df = pandas.DataFrame(inter)
-                df.to_csv(folder_name + '/%s_hyper_search' % date)
+                df.to_csv(folder_name + '/hyper_search')
 
             else:
                 my_dict[s] = vars(Result)[s]
@@ -2874,6 +2876,6 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     values = list(my_dict.values())
 
     df = pandas.DataFrame(values, index=title, columns=[date]).T
-    df.to_csv(folder_name + '/%s_result' % date)
+    df.to_csv(folder_name + '/result')
 
     return
