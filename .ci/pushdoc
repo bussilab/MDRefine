@@ -1,0 +1,48 @@
+orig=$PWD
+hash=$( git log -1 --format="%h")
+cd "$(mktemp -d)"
+cp -R $orig/doc .
+cd doc
+
+
+git init
+git config user.email giovanni.bussi+bussilabbot@gmail.com
+git config user.name bussilabbot
+git remote add doc https://bussilabbot:$@MDREFINE_DOC@github.com/bussilab/doc-MDRefine
+
+cat > index.html << EOF
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>Page Auto Redirect</title>
+<meta http-equiv="refresh" content ="0; bussilab/index.html">
+</head>
+<body>
+This is an auto redirect page.
+</body>
+</html>
+EOF
+
+touch .nojekyll
+
+cat > README.md << EOF
+Precompiled manual for MDRefine
+-------------------------------
+
+This repository hosts a precompiled manual for MDRefine
+git revision [$hash](https://github.com/bussilab/MDRefine/commit/$hash).
+
+To browse the manual you should go [here](http://bussilab.github.io/doc-MDRefine).
+
+You can also download a full copy of the manual for offline access
+at [this link](http://github.com/bussilab/doc-MDRefine/archive/master.zip).
+  
+This manual has been compiled on [GitHub Actions](https://github.com/bussilab/MDRefine/actions) on $(date).
+
+EOF
+
+git add . --all
+
+git commit -m "Update to bussilab/MDRefine@$hash" >/dev/null
+# -q and 2> is not to show the BUSSILABBOT_TOKEN on Travis log
+git push -q -f doc master 2> /dev/null
