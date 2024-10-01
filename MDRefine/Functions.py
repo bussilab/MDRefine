@@ -1,8 +1,8 @@
 """
-Tools to perform reweighting using the fully combined approach.
-It also includes optimization of the hyperparameters through minimization of chi2 on test set.
-numpy is required for loadtxt and for gradient arrays with L-BFGS-B minimization (rather than jax.numpy)
+Tools to perform reweighting using several refinements.
+It also includes optimization of the hyperparameters through minimization of the chi2 on test test set.
 """
+
 import os
 import copy
 import time
@@ -12,7 +12,7 @@ from scipy.optimize import minimize
 from joblib import Parallel, delayed
 import datetime
 
-
+# numpy is required for loadtxt and for gradient arrays with L-BFGS-B minimization (rather than jax.numpy)
 import numpy
 import jax
 import jax.numpy as np
@@ -22,17 +22,15 @@ config.update("jax_enable_x64", True)
 # %% A. Functions to load data:
 # %% A1. check_and_skip
 
-"""
-This function **check_and_skip** is an internal tool used in **load_data** which modifies input **data**:
-- append observables computed through forward models (if any) to data.g;
-  if hasattr(data,'selected_obs'): remove non-selected observables from data.forward_qs;
-- select frames with given **stride**;
-- count n. experiments and n. frames (data[name_sys].n_frames and data[name_sys].n_experiments)
-  and check corresponding matching.
-"""
-
-
 def check_and_skip(data, *, stride=1):
+    """
+    This function is an internal tool used in **load_data** to modify input **data**:
+    - it appends observables computed through forward models (if any) to data.g;
+    - if hasattr(data, 'selected_obs'): it removes non-selected observables from data.forward_qs;
+    - select frames with given **stride**;
+    - count n. experiments and n. frames (data[name_sys].n_frames and data[name_sys].n_experiments)
+    and check corresponding matching.
+    """
 
     output_data = {}
     output_data['global'] = data['global']
@@ -156,14 +154,6 @@ def check_and_skip(data, *, stride=1):
     return output_data
 
 # %% A2. load_data
-
-
-"""
-This function **load_data** loads data from specified directory as indicated by the user in **infos**
-to a dictionary **data** of classes, which includes data['global'] (global properties) and data[system_name];
-for alchemical calculations, there is also data[cycle_name].
-"""
-
 
 class data_global_class:
     def __init__(self, info_global, path_directory):
@@ -354,6 +344,11 @@ class data_cycle_class:
 
 
 def load_data(infos, *, stride=1):
+    """
+    This tool loads data from specified directory as indicated by the user in **infos**
+    to a dictionary **data** of classes, which includes data['global'] (global properties) and data[system_name];
+    for alchemical calculations, there is also data[cycle_name].
+    """
 
     print('loading data from directory...')
 
@@ -432,14 +427,13 @@ def load_data(infos, *, stride=1):
 # %% B1. compute_js
 
 
-"""
-This function **compute_js** computes the indices (cumulative sums) for lambdas corresponding to different systems and
-types of observables. BE CAREFUL TO follow always the same order: let's choose it as that of **data.n_experiments**,
-which is a dictionary n_experiments[name_sys][name].
-"""
-
-
 def compute_js(n_experiments):
+
+    """
+    This tool computes the indices js (cumulative sums) for lambdas corresponding to different systems and
+    types of observables. Be careful to follow always the same order: let's choose it as that of **data.n_experiments**,
+    which is a dictionary n_experiments[name_sys][name].
+    """
 
     js = []
 
@@ -460,17 +454,14 @@ def compute_js(n_experiments):
 # %% B2. compute_new_weights
 # to reweight given original weights and correction
 
-
-"""
-This function **compute_new_weights** compute the new weights as weights*exp(-correction).
-It modifies input weights and correction:
-- weights are normalized;
-- correction is shifted by correction -= shift, where shift = np.min(correction).
-It returns array **new_weights** and float **logZ**.
-"""
-
-
 def compute_new_weights(weights: np.array, correction: np.array):
+    """
+    This tool computes the new weights as weights*exp(-correction).
+    It modifies input weights and correction:
+    - weights are normalized;
+    - correction is shifted by correction -= shift, where shift = np.min(correction).
+    It returns array **new_weights** and float **logZ**.
+    """
 
     weights = weights/np.sum(weights)
 
@@ -489,27 +480,33 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
 # %% B3. gamma_function
 
-
-"""
-This function **gamma_function** compute value of gamma function and (if if_gradient) its derivatives and av_g.
-Make sure that lambdas follow the same order as g, gexp (let's use that of data.n_experiments).
-Parameters:
-- lambdas: a 1D array of length N; lambdas[j] is lambda value for j-th observable;
-- g: a 2D array (M x N); g[i,j] is j-th observable computed in the i-th frame;
-- gexp: a 2D array (N x 2); g[j,0] is experimental value of i-th observable, g[j,1] is the associated uncertainty;
-- weights: a 1D array of length M; w[i] is weight of i-th frame (possibly non-normalized);
-- alpha: float; value of the hyper parameter;
-- if_gradient: boolean.
-Output:
-- gammaf: float value of gamma function;
-- if if_gradient:
-    - grad: a 1D array of length N; the gradient of gamma function with respect to lambdas;
-    - av_g: a 1D array of length N; average value of j-th observable (average over new_weights).
-"""
-
-
 def gamma_function(lambdas: np.array, g: np.array, gexp: np.array, weights: np.array, alpha: float, if_gradient: bool = False):
+    """
+    This tool computes value of gamma function and (if if_gradient) its derivatives and av_g.
+    Make sure that lambdas follow the same order as g, gexp (let's use that of data.n_experiments).
 
+    Parameters:
+    -----------
+    
+    lambdas: a 1D array of length N; lambdas[j] is lambda value for j-th observable;
+    
+    g: a 2D array (M x N); g[i,j] is j-th observable computed in the i-th frame;
+    
+    gexp: a 2D array (N x 2); g[j,0] is experimental value of i-th observable, g[j,1] is the associated uncertainty;
+    
+    weights: a 1D array of length M; w[i] is weight of i-th frame (possibly non-normalized);
+    
+    alpha: float; value of the hyper parameter;
+    
+    if_gradient: boolean.
+    ----------------------
+
+    Output:
+    - gammaf: float value of gamma function;
+    - if if_gradient:
+        - grad: a 1D array of length N; the gradient of gamma function with respect to lambdas;
+        - av_g: a 1D array of length N; average value of j-th observable (average over new_weights).
+    """
     correction_lambdas = np.matmul(g, lambdas)
     newweights, logZlambda = compute_new_weights(weights, correction_lambdas)
 
@@ -525,21 +522,17 @@ def gamma_function(lambdas: np.array, g: np.array, gexp: np.array, weights: np.a
 
 # %% B4. normalize_observables
 
-
-"""
-This function **normalize_observables** normalize g, gexp.
-Since experimental observables have different units, it is better to normalize them, in order that
-varying any lambda by a fixed value epsilon would result in comparable effects to the ensemble.
-This results to be useful in the minimization of gamma_function.
-Input values: gexp, g (dictionaries corresponding to data[name_sys].gexp and data[name_sys].g) and weights;
-weights is by default None (equal weight for each frame), otherwise a 1D array.
-Output values: norm_g, norm_gexp (normalized g and gexp), norm_gmean, norm_gstd (reference values for normalization:
-average and standard deviation).
-"""
-
-
 def normalize_observables(gexp, g, weights=None):
-
+    """
+    This tool normalizes g, gexp.
+    Since experimental observables have different units, it is better to normalize them, in order that
+    varying any lambda by a fixed value epsilon would result in comparable effects to the ensemble.
+    This results to be useful in the minimization of gamma_function.
+    Input values: gexp, g (dictionaries corresponding to data[name_sys].gexp and data[name_sys].g) and weights;
+    weights is by default None (equal weight for each frame), otherwise a 1D array.
+    Output values: norm_g, norm_gexp (normalized g and gexp), norm_gmean, norm_gstd (reference values for normalization:
+    average and standard deviation).
+    """
     norm_g = {}
     norm_gexp = {}
     norm_gmean = {}
@@ -580,19 +573,21 @@ def normalize_observables(gexp, g, weights=None):
 # %% C2. compute_D_KL
 
 
-"""
-This function **compute_D_KL** computes Kullback-Leibler divergence of P(x) = 1/Z P_0 (x) e^(-V(x)/T)
-w.r.t. P_0 (x), which results equal to <V>_P / T + log Z.
-Input values:
-- weights_P: 1D array for P(x);
-- correction_ff: 1D array for V(x);
-- temperature: float for T;
-- logZ_P: float for log Z.
-"""
-
-
 def compute_D_KL(weights_P: np.array, correction_ff: np.array, temperature: float, logZ_P: float):
+    """
+    This tool computes the Kullback-Leibler divergence of $P(x) = 1/Z P_0 (x) e^(-V(x)/T)$
+    w.r.t. $P_0 (x)$ as $<V>_P / T + \log Z$.
+    
+    Input values:
+    --------------
+    - weights_P: 1D array for P(x);
 
+    - correction_ff: 1D array for V(x);
+    
+    - temperature: float for T;
+    
+    - logZ_P: float for log Z.
+    """
     weighted_ff = weights_P*np.array(correction_ff)
     av_ff = np.nansum(weighted_ff, axis=0)
     D_KL = -(av_ff/temperature + logZ_P)
@@ -602,19 +597,16 @@ def compute_D_KL(weights_P: np.array, correction_ff: np.array, temperature: floa
 # %% C3. l2_regularization
 
 
-"""
-This function **l2_regularization** computes the l2 regularization specified by **choice**, which includes:
-- 'plain l2' (plain l2 regularization);
-- ad-hoc regularization for alchemical calculations with charges (as described by Valerio Piomponi et al.):
-  pars[:-1] are the charges and pars[-1] is V_eta, you have constraint on charges, and there are 3 pars[4] charges;
-    - 'constraint 1';
-    - 'constraint 2' (with l2 regularization also on V_eta).
-Output values: lossf_reg and gradient.
-"""
-
-
 def l2_regularization(pars: np.array, choice: str = 'plain l2'):
-
+    """
+    This tool computes the l2 regularization specified by **choice**, which includes:
+    - 'plain l2' (plain l2 regularization);
+    - ad-hoc regularization for alchemical calculations with charges (as described by Valerio Piomponi et al.):
+    pars[:-1] are the charges and pars[-1] is V_eta, you have constraint on charges, and there are 3 pars[4] charges;
+        - 'constraint 1';
+        - 'constraint 2' (with l2 regularization also on V_eta).
+    Output values: lossf_reg and gradient.
+    """
     lossf_reg = None
     gradient = None
 
@@ -636,26 +628,26 @@ def l2_regularization(pars: np.array, choice: str = 'plain l2'):
 
 # %% C4. compute_chi2
 
-
-"""
-This function **compute_chi2** computes the chi2 (for a given system).
-Input values:
-- ref (dict for references: '=', '>', '<', '><');
-- weights (1D np.array);
-- g (dict for observables);
-- gexp (dict for experimental values);
-- if_separate (boolean, True if you are distinguishing between LOWER and UPPER bounds (name_type + ' LOWER' or
-    name_type + ' UPPER'), needed for minimizations with double bounds.)
-It returns 3 dicts with keys running over different kinds of observables and 1 float:
-- av_g (dict for average values);
-- chi2 (dict for chi2);
-- rel_diffs (dict for relative differences);
-- tot_chi2 (total chi2 for the given system).
-"""
-
-
 def compute_chi2(ref, weights, g, gexp, if_separate=False):
-
+    """
+    This tool computes the chi2 (for a given system).
+    
+    Input values:
+    --------------
+    - ref (dict for references: '=', '>', '<', '><');
+    - weights (1D np.array);
+    - g (dict for observables);
+    - gexp (dict for experimental values);
+    - if_separate (boolean, True if you are distinguishing between LOWER and UPPER bounds (name_type + ' LOWER' or
+        name_type + ' UPPER'), needed for minimizations with double bounds.)
+    
+    It returns 3 dicts with keys running over different kinds of observables and 1 float:
+    ---------------------------------------------
+    - av_g (dict for average values);
+    - chi2 (dict for chi2);
+    - rel_diffs (dict for relative differences);
+    - tot_chi2 (total chi2 for the given system).
+    """
     av_g = {}
     rel_diffs = {}
     chi2 = {}
@@ -715,21 +707,17 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
 
 # %% C5. compute_DeltaDeltaG_terms
 
-
-"""
-This function **compute_DeltaDeltaG_terms** computes contribution from alchemical data about Delta Delta G
-to the loss function.
-Input values: **data** (full data dict of classes), **logZ_P** (dictionary);
-- data['global'] has attributes: cycle_names (list of cycle names);
-- for s in cycle_names: data[s] has attributes temperature (of the cycle), gexp_DDG;
-- for s in cycle_names: data[s+k] for k in '_MD', '_MS', '_AD', '_AS' has attributes temperature, logZ.
-Output values: new_av_DG (dict of reweighted averages of Delta G); chi2 (dict of contributions to chi2);
-loss (total contribution to the loss function from alchemical transformations).
-"""
-
-
 def compute_DeltaDeltaG_terms(data, logZ_P):
-
+    """
+    This tool computes contribution from alchemical data about Delta Delta G
+    to the loss function.
+    Input values: **data** (full data dict of classes), **logZ_P** (dictionary);
+    - data['global'] has attributes: cycle_names (list of cycle names);
+    - for s in cycle_names: data[s] has attributes temperature (of the cycle), gexp_DDG;
+    - for s in cycle_names: data[s+k] for k in '_MD', '_MS', '_AD', '_AS' has attributes temperature, logZ.
+    Output values: new_av_DG (dict of reweighted averages of Delta G); chi2 (dict of contributions to chi2);
+    loss (total contribution to the loss function from alchemical transformations).
+    """
     cycle_names = data['global'].cycle_names
 
     new_av_DG = {}
@@ -761,26 +749,30 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
 # %% C6. compute_details_ER
 
 
-"""
-This function **compute_details_ER** computes the contribution to the loss function due to Ensemble Refinement
-explicitely (namely, 1/2*chi2 + alpha*D_KL) and compare this value with -alpha*Gamma (they must be equal: check).
-It cycles over different systems. It acts in the end of the minimization of loss_function (not for the minimization
-itself, since we exploit the Gamma function).
-Be careful to use either: normalized values for lambdas and g (if hasattr(data,'normg_mean')) or non-normalized
-(if not hasattr(data,'normg_mean')).
-Inputs:
-- weights_P (dict of np.arrays): the weights on which Ensemble Refinement acts (those with force-field correction
-    in the fully combined refinement);
-- g (dict of dicts): the observables (with updated forward-model coefficients);
-- data (dict of classes): the original data;
-- lambdas (dict of np.arrays): the coefficients for Ensemble Refinement;
-- alpha (float): the hyper-parameter for Ensemble Refinement.
-Output: instance of Details_class.
-"""
-
-
 def compute_details_ER(weights_P, g, data, lambdas, alpha):
-
+    """
+    This tool computes the contribution to the loss function due to Ensemble Refinement
+    explicitely (namely, 1/2*chi2 + alpha*D_KL) and compare this value with -alpha*Gamma (they must be equal: check).
+    It cycles over different systems. It acts in the end of the minimization of loss_function (not for the minimization
+    itself, since we exploit the Gamma function).
+    Be careful to use either: normalized values for lambdas and g (if hasattr(data,'normg_mean')) or non-normalized
+    (if not hasattr(data,'normg_mean')).
+    
+    Inputs:
+    ------------
+    weights_P (dict of np.arrays): the weights on which Ensemble Refinement acts (those with force-field correction
+        in the fully combined refinement);
+    
+    g (dict of dicts): the observables (with updated forward-model coefficients);
+    
+    data (dict of classes): the original data;
+    
+    lambdas (dict of np.arrays): the coefficients for Ensemble Refinement;
+    
+    alpha (float): the hyper-parameter for Ensemble Refinement.
+    ------------------------------
+    Output: instance of Details_class.
+    """
     if hasattr(data, 'normg_mean'):
         print('WARNING: you are using normalized observables!')
 
@@ -829,56 +821,60 @@ def compute_details_ER(weights_P, g, data, lambdas, alpha):
 # %% C7. loss_function
 
 
-"""
-This function **loss_function** computes the fully-combined loss function (to minimize),
-taking advantage of the inner minimization with Gamma function.
-
---------------------------------------------------------------------------------------------------------------
-Input parameters:
-- pars_ff_fm: 1D np.array with parameters for force-field corrections and/or forward models;
-- data: dict of classes as organised in load_data (see above);
-- regularization: dict which can include
-    - 'force_field_reg' key: it can be a string (among 'plain l2', 'constraint 1', 'constraint 2', 'KL divergence')
-      or a user-defined function which takes as input pars_ff and returns regularization term to be multiplied by beta;
-    - 'forward_model_reg' key: a user-defined function which takes as input pars_fm and forward_coeffs_0
-      (current and reference forward-model coefficients) and returns regularization term to be multiplied by gamma;
-- alpha, beta, gamma: floats corresponding to hyperparameters of combined refinement
-  (respectively to: the ensemble, the force-field, the forward-model)
-  (np.inf by default, namely no refinement in that direction);
-- fixed_lambdas: np.array of lambdas (read below) (None by default);
-- gtol_inn: float (gtol for the inner minimization of gamma functions) (1e-3 by default);
-- if_save: bool (read below) (False by default);
-- bounds: dict of boundaries for the inner minimization (None by default).
-
---------------------------------------------------------------------------------------------------------------
-Notes on using loss_function
-
-If not np.isinf(alpha):
-- if fixed_lambdas == None, then do the inner minimization of Gamma (in this case, you have global variable lambdas,
-    corresponding to starting point of the minimization; it is a numpy array correctly sorted - see below);
-- else: lambdas is fixed (fixed_lambdas) and the Gamma function is evaluated at this value of lambda, which must
-    correspond to its point of minimum, otherwise mismatch between Gamma function and Ensemble Refinement loss).
-
-If if_save: it will return Details class with the detailed results; otherwise, it will return loss value.
-
-The input data will not be modified by the loss_function (neither explicitely by loss_function nor by inner functions:
-BE SURE of that if you are going to modify loss_function):
-for forward-model updating, you are going to define a variable g (through copy.deepcopy).
-
-The order followed for lambdas is the one of data.n_experiments, which is not modified in any step.
-The order followed for pars_ff_fm is: first force-field correction (ff), then forward model (fm);
-order for ff _ff:
-    names_ff_pars = []
-    for k in system_names: [names_ff_pars.append(x) for x in data[k].f.keys() if x not in names_ff_pars];
-order for par_fm: data.forward_coeffs_0.
-"""
-
-
 def loss_function(
     pars_ff_fm: np.array, data: dict, regularization: dict,
         alpha: float = +np.inf, beta: float = +np.inf, gamma: float = +np.inf,
         fixed_lambdas: np.array = None, gtol_inn: float = 1e-3, if_save: bool = False, bounds: dict = None):
+    """
+    This tool computes the fully-combined loss function (to minimize),
+    taking advantage of the inner minimization with Gamma function.
 
+    --------------------------------------------------------------------------------------------------------------
+    Input parameters:
+    -----------------
+    pars_ff_fm: 1D np.array with parameters for force-field corrections and/or forward models;
+    
+    data: dict of classes as organised in load_data (see above);
+    
+    regularization: dict which can include
+        - 'force_field_reg' key: it can be a string (among 'plain l2', 'constraint 1', 'constraint 2', 'KL divergence')
+        or a user-defined function which takes as input pars_ff and returns regularization term to be multiplied by beta;
+        - 'forward_model_reg' key: a user-defined function which takes as input pars_fm and forward_coeffs_0
+        (current and reference forward-model coefficients) and returns regularization term to be multiplied by gamma;
+    
+    alpha, beta, gamma: floats corresponding to hyperparameters of combined refinement
+    (respectively to: the ensemble, the force-field, the forward-model)
+    (np.inf by default, namely no refinement in that direction);
+    
+    fixed_lambdas: np.array of lambdas (read below) (None by default);
+    
+    gtol_inn: float (gtol for the inner minimization of gamma functions) (1e-3 by default);
+    
+    if_save: bool (read below) (False by default);
+    
+    bounds: dict of boundaries for the inner minimization (None by default).
+    --------------------------------------------------------------------------------------------------------------
+    Notes on using loss_function
+
+    If not np.isinf(alpha):
+    - if fixed_lambdas == None, then do the inner minimization of Gamma (in this case, you have global variable lambdas,
+        corresponding to starting point of the minimization; it is a numpy array correctly sorted - see below);
+    - else: lambdas is fixed (fixed_lambdas) and the Gamma function is evaluated at this value of lambda, which must
+        correspond to its point of minimum, otherwise mismatch between Gamma function and Ensemble Refinement loss).
+
+    If if_save: it will return Details class with the detailed results; otherwise, it will return loss value.
+
+    The input data will not be modified by the loss_function (neither explicitely by loss_function nor by inner functions:
+    BE SURE of that if you are going to modify loss_function):
+    for forward-model updating, you are going to define a variable g (through copy.deepcopy).
+
+    The order followed for lambdas is the one of data.n_experiments, which is not modified in any step.
+    The order followed for pars_ff_fm is: first force-field correction (ff), then forward model (fm);
+    order for ff _ff:
+        names_ff_pars = []
+        for k in system_names: [names_ff_pars.append(x) for x in data[k].f.keys() if x not in names_ff_pars];
+    order for par_fm: data.forward_coeffs_0.
+    """
     assert alpha > 0, 'alpha must be strictly positive'
     assert beta >= 0, 'beta must be positive or zero'
     assert gamma >= 0, 'gamma must be positive or zero'
@@ -1141,27 +1137,31 @@ def loss_function(
 # %% C8. loss_function_and_grad
 
 
-"""
-This function **loss_function_and_grad** returns loss_function and its gradient;
-the gradient function, which is going to be evaluated, is computed by Jax and passed as input.
-If not np.isinf(alpha), it appends also loss and lambdas to intermediates.loss and intermediates.lambdas.
-
-Input parameters:
-- pars: np.array of parameters for force-field correction and forward model, respectively;
-- data, regularization: dicts (see for loss_function);
-- alpha, beta, gamma: floats (hyperparameters);
-- gtol_inn: float (see for loss_function);
-- boundaries: dict (see for loss_function);
-- gradient_fun: function (gradient of loss_function).
-
-Global: intermediates (intermediate values during minimization steps of loss_function).
-"""
-
-
 def loss_function_and_grad(
         pars: np.array, data: dict, regularization: dict, alpha: float, beta: float, gamma: float,
         gtol_inn: float, boundaries: dict, gradient_fun):
+    """
+    This tool returns loss_function and its gradient;
+    the gradient function, which is going to be evaluated, is computed by Jax and passed as input.
+    If not np.isinf(alpha), it appends also loss and lambdas to intermediates.loss and intermediates.lambdas.
 
+    Input parameters:
+    -------------------
+    
+    pars: np.array of parameters for force-field correction and forward model, respectively;
+    
+    data, regularization: dicts (see for loss_function);
+    
+    alpha, beta, gamma: floats (hyperparameters);
+    
+    gtol_inn: float (see for loss_function);
+    
+    boundaries: dict (see for loss_function);
+    
+    gradient_fun: function (gradient of loss_function).
+    ---------------
+    Global: intermediates (intermediate values during minimization steps of loss_function).
+    """
     print('New evaluation:')
     # print('alpha, beta, gamma: ', alpha, beta, gamma)
     # print('pars: ', pars)
@@ -1191,17 +1191,14 @@ def loss_function_and_grad(
 # %% C9. deconvolve_lambdas
 
 
-"""
-This function **deconvolve_lambdas** deconvolves lambdas from np.array to dict of dicts (corresponding to data[name_sys].g);
-if if_denormalize, then lambdas has been computed with normalized data, so use data[name_sys].normg_std and normg_mean
-in order to go back to corresponding lambdas for non-normalized data.
-Input values: data; lambdas (np.array); if_denormalize (bool, True by default).
-The order of lambdas is the one described in compute_js.
-"""
-
-
 def deconvolve_lambdas(data, lambdas: np.array, if_denormalize: bool = True):
-
+    """
+    This tool deconvolves lambdas from np.array to dict of dicts (corresponding to data[name_sys].g);
+    if if_denormalize, then lambdas has been computed with normalized data, so use data[name_sys].normg_std and normg_mean
+    in order to go back to corresponding lambdas for non-normalized data.
+    Input values: data; lambdas (np.array); if_denormalize (bool, True by default).
+    The order of lambdas is the one described in compute_js.
+    """
     dict_lambdas = {}
 
     ns = 0
@@ -1242,24 +1239,6 @@ def deconvolve_lambdas(data, lambdas: np.array, if_denormalize: bool = True):
 # %% C10. minimizer
 
 
-"""
-This function **minimizer** minimizes loss_function on **original_data** and do **validation** on data_test (if not None).
-See Examples for further explanation.
-
-Input values:
-- original_data: data employed for minimization of loss_function (same format as data from load_data function);
-- regularization: dict (see above for loss_function);
-- alpha, beta, gamma: floats (hyperparameters for combined refinement)
-    (np.inf by default: no refinement in that direction);
-- gtol, gtol_inn: floats (gtol parameters for minimize of loss_function or inner gamma_function, respectively)
-    (1e-3 by default);
-- data_test: data employed as test set (same format as data from load_data function)
-    (None by default, namely no validation, just minimization);
-    a splitting of the full data set into training and test set is done by **select_traintest** described in the following;
-- starting_pars: np.array (pre-defined values for the starting point of loss_function minimization) (None by default).
-"""
-
-
 class intermediates_class:
     def __init__(self, alpha):
         self.loss = []
@@ -1273,6 +1252,28 @@ def minimizer(
         original_data, *, regularization: dict = None, alpha: float = +np.inf, beta: float = +np.inf, gamma: float = +np.inf,
         gtol: float = 1e-3, gtol_inn: float = 1e-3, data_test: dict = None, starting_pars: np.array = None):
 
+    """
+    This tool minimizes loss_function on **original_data** and do **validation** on data_test (if not None).
+
+    Input values:
+    --------------
+    
+    original_data: data employed for minimization of loss_function (same format as data from load_data function);
+    
+    regularization: dict (see above for loss_function);
+    
+    alpha, beta, gamma: floats (hyperparameters for combined refinement)
+        (np.inf by default: no refinement in that direction);
+    
+    gtol, gtol_inn: floats (gtol parameters for minimize of loss_function or inner gamma_function, respectively)
+        (1e-3 by default);
+    
+    data_test: data employed as test set (same format as data from load_data function)
+        (None by default, namely no validation, just minimization);
+        a splitting of the full data set into training and test set is done by **select_traintest** described in the following;
+    
+    starting_pars: np.array (pre-defined values for the starting point of loss_function minimization) (None by default).
+    """
     assert alpha > 0, 'alpha must be > 0'
     assert beta >= 0, 'beta must be >= 0'
     assert gamma >= 0, 'gamma must be >= 0'
@@ -1472,34 +1473,6 @@ def minimizer(
 
 # %% C11. select_traintest
 
-
-"""
-This function **select_traintest** splits the data set into training and test set.
-
-Input values:
-- the **data** set;
-- (optionally) **test_frames_size** and **test_obs_size**: the fraction of frames for test set and
-    the fraction of observables for test set; each of them is a number in $(0,1)$ (same fraction for every system),
-    by default 0.2;
-- (optionally)**random_state** (namely, the seed, just to make same choice for different hyperparameters,
-    otherwise it is randomly taken); alternatively, you can pass the dictionaries **test_obs** and/or **test_frames**;
-- (optionally) **test_frames** and **test_obs** (dicts);
-- (optionally) **if_all_frames** (boolean, False by default; if True then use all frames for new observables in the test set);
-- (optionally) **replica_infos** (dict infos, including: 'n_temp_replica', 'path_directory', stride) in order to split frames
-    following continuous trajectories in replica exchange, if you wish; it will read replica_temp.npy files
-    with shape (n_frames, n_replicas) containing numbers from 0 to n_replicas-1 which indicate corresponding
-    TEMPERATURES (for each replica index in axis=1).
-
-Output:
-- **data_train** and **data_test**: the splitting into data_train and data_test;
-    data_test refers to:
-        trained observables and non-trained frames (where non-specified "new");
-        non-trained (new) observables and non-trained/all frames (where specified "new");
-- **test_obs** and **test_frames** (or **test_replicas**): the observables and frames (or replicas) selected for the test set
-    (replicas **test_rep** rather than frames if pos_replicas is not None).
-"""
-
-
 class class_test:
     def __init__(self, data_sys, test_frames_sys, test_obs_sys, if_all_frames, data_train_sys):
 
@@ -1650,7 +1623,39 @@ class class_train:
 def select_traintest(
         data, *, test_frames_size: float = 0.2, test_obs_size: float = 0.2, random_state: int = None,
         test_frames: dict = None, test_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None):
+    """
+    This tool splits the data set into training and test set.
 
+    Input values:
+    ---------------
+    **data** set;
+    
+    (optionally) **test_frames_size** and **test_obs_size**: the fraction of frames for test set and
+        the fraction of observables for test set; each of them is a number in $(0,1)$ (same fraction for every system),
+        by default 0.2;
+    
+    (optionally)**random_state** (namely, the seed, just to make same choice for different hyperparameters,
+        otherwise it is randomly taken); alternatively, you can pass the dictionaries **test_obs** and/or **test_frames**;
+    
+    (optionally) **test_frames** and **test_obs** (dicts);
+    
+    (optionally) **if_all_frames** (boolean, False by default; if True then use all frames for new observables in the test set);
+    
+    (optionally) **replica_infos** (dict infos, including: 'n_temp_replica', 'path_directory', stride) in order to split frames
+        following continuous trajectories in replica exchange, if you wish; it will read replica_temp.npy files
+        with shape (n_frames, n_replicas) containing numbers from 0 to n_replicas-1 which indicate corresponding
+        TEMPERATURES (for each replica index in axis=1).
+    ----------
+    Output:
+    
+    **data_train** and **data_test**: the splitting into data_train and data_test;
+        data_test refers to:
+            trained observables and non-trained frames (where non-specified "new");
+            non-trained (new) observables and non-trained/all frames (where specified "new");
+    
+    **test_obs** and **test_frames** (or **test_replicas**): the observables and frames (or replicas) selected for the test set
+        (replicas **test_rep** rather than frames if pos_replicas is not None).
+    """
     # PART 1: IF NONE, SELECT TEST OBSERVABLES AND TEST FRAMES
 
     system_names = data['global'].system_names
@@ -1830,30 +1835,35 @@ def select_traintest(
 # %% C12. validation
 
 
-"""
-This function **validation** evaluates loss_function in detail over the test set; then,
-- if which_return == 'chi2 validation', it returns total chi2 on validation data set (same observables, new frames)
-    (used to compute the derivatives with Jax);
-- elif which_return == 'chi2 test', it returns total chi2 on test data set (new observables, new frames
-    or all frames if data_train is not None) (used to compute the derivatives with Jax);
-- else, it returns Validation_values class, with all the computed values.
-
-Input values:
-- pars_ff_fm: np.array for force-field and forward-model coefficients;
-- lambdas: np.array of lambdas coefficients (those for ensemble refinement);
-- data_test: dict for test data set, as given by select_traintest;
-- regularization: see above for loss_function (by default, None);
-- alpha, beta, gamma: floats for hyperparameters (by default, np.inf);
-- data_train: dict for training data set, as given by select_traintest (None by default,
-    namely use only test frames for new observables);
-- which_return: str described above (by default 'details').
-"""
-
-
 def validation(
         pars_ff_fm, lambdas, data_test, *, regularization=None, alpha=np.inf, beta=np.inf, gamma=np.inf,
         data_train=None, which_return='details'):
+    """
+    This tool evaluates loss_function in detail over the test set; then,
+    - if which_return == 'chi2 validation', it returns total chi2 on validation data set (same observables, new frames)
+        (used to compute the derivatives with Jax);
+    - elif which_return == 'chi2 test', it returns total chi2 on test data set (new observables, new frames
+        or all frames if data_train is not None) (used to compute the derivatives with Jax);
+    - else, it returns Validation_values class, with all the computed values.
 
+    Input values:
+    -------------
+    
+    pars_ff_fm: np.array for force-field and forward-model coefficients;
+    
+    lambdas: np.array of lambdas coefficients (those for ensemble refinement);
+    
+    data_test: dict for test data set, as given by select_traintest;
+    
+    regularization: see in loss_function (by default, None);
+    
+    alpha, beta, gamma: floats for hyperparameters (by default, np.inf);
+    
+    data_train: dict for training data set, as given by select_traintest (None by default,
+        namely use only test frames for new observables);
+    
+    which_return: str described above (by default 'details').
+    """
     assert alpha > 0, 'alpha must be > 0'
     assert beta >= 0, 'beta must be >= 0'
     assert gamma >= 0, 'gamma must be >= 0'
@@ -2000,28 +2010,33 @@ def validation(
 # %% D1. compute_hyperderivatives
 
 
-"""
-Function **compute_hyperderivatives** computes the derivatives of parameters with respect to hyperparameters,
-which are going to be used later to compute the derivatives of chi2 w.r.t. hyperparameters.
-
-Input values:
-- pars_ff_fm: np.array for force-field and forward-model coefficients;
-- lambdas: np.array for lambdas coefficients (those for ensemble refinement);
-- data: dict for data set;
-- regularization: see above;
-- derivatives_funs: class of derivatives functions computed by Jax;
-- log10_alpha, log10_beta, log10_gamma: floats for log (in base 10) of corresponding hyperparameters
-    (np.inf by default).
-
-It returns instance of class derivatives, which includes as attributes values of derivatives required in the following:
-they include dlambdas_dlogalpha, dlambdas_dpars, dpars_dlogalpha, dpars_dlogbeta, dpars_dloggamma.
-"""
-
-
 def compute_hyperderivatives(
         pars_ff_fm, lambdas, data, regularization, derivatives_funs,
         log10_alpha=+np.inf, log10_beta=+np.inf, log10_gamma=+np.inf):
+    """
+    This tool computes the derivatives of parameters with respect to hyperparameters,
+    which are going to be used later to compute the derivatives of chi2 w.r.t. hyperparameters.
 
+    Input values:
+    --------------
+    
+    pars_ff_fm: np.array for force-field and forward-model coefficients;
+    
+    lambdas: np.array for lambdas coefficients (those for ensemble refinement);
+    
+    data: dict for data set;
+    
+    regularization: see in loss_function;
+    
+    derivatives_funs: class of derivatives functions computed by Jax;
+    
+    log10_alpha, log10_beta, log10_gamma: floats for log (in base 10) of corresponding hyperparameters
+        (np.inf by default).
+
+    ----------------
+    It returns instance of class derivatives, which includes as attributes values of derivatives required in the following:
+    they include dlambdas_dlogalpha, dlambdas_dpars, dpars_dlogalpha, dpars_dlogbeta, dpars_dloggamma.
+    """
     system_names = data['global'].system_names
 
     if np.isposinf(log10_beta) and np.isposinf(log10_gamma) and not np.isinf(log10_alpha):
@@ -2219,23 +2234,25 @@ def compute_hyperderivatives(
 
 # %% D2. compute_chi2_tot
 
-
-"""
-Function **compute_chi2_tot** returns the total chi2 (float) for training or test data set, according to **which_set**
-(which_set = 'training' for chi2 on training set, 'validation' for chi2 on training observables but new frames,
-'test' for chi2 on test observables and new frames, through validation function).
-
-Input values:
-- pars_ff_fm, lambdas: np.arrays for (force-field + forward-model) parameters and lambdas parameters, respectively;
-- data: dict for data set;
-- regularization: dict for regularizations (see above);
-- alpha, beta, gamma: floats for hyperparameters;
-- which_set: str, as explained above.
-"""
-
-
 def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gamma, which_set):
+    """
+    This tool returns the total chi2 (float) for training or test data set, according to **which_set**
+    (which_set = 'training' for chi2 on training set, 'validation' for chi2 on training observables but new frames,
+    'test' for chi2 on test observables and new frames, through validation function).
 
+    Input values:
+    ---------------
+    
+    pars_ff_fm, lambdas: np.arrays for (force-field + forward-model) parameters and lambdas parameters, respectively;
+    
+    data: dict for data set;
+    
+    regularization: dict for regularizations (see in loss_function);
+    
+    alpha, beta, gamma: floats for hyperparameters;
+    
+    which_set: str, as explained above.
+    """
     if which_set == 'training' or which_set == 'validation':
         tot_chi2 = 0
 
@@ -2255,25 +2272,26 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
 
 # %% D3. put_together
 
-
-""""
-Function **put_together** applies chain rule to get derivatives of chi2 w.r.t hyperparameters from
-derivatives of chi2 w.r.t. parameters and derivatives of parameters w.r.t. hyperparameters.
-
-Input values:
-- dchi2_dpars: np.array with derivatives of chi2 w.r.t. pars_ff_fm (force-field and forward-model parameters);
-- dchi2_dlambdas: np.array with derivatives of chi2 w.r.t. lambdas
-    (same order of lambdas in dchi2_dlambdas and in derivatives);
-- derivatives: class with derivatives of pars_ff_fm and lambdas w.r.t. hyperparameters
-    (determined in compute_hyperderivatives).
-
-Output: class whose attributes can include dchi2_dlogalpha, dchi2_dlogbeta, dchi2_dloggamma,
-depending on which hyperparameters are not fixed to infinite.
-"""
-
-
 def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
+    """"
+    This tool applies chain rule to get derivatives of chi2 w.r.t hyperparameters from
+    derivatives of chi2 w.r.t. parameters and derivatives of parameters w.r.t. hyperparameters.
 
+    Input values:
+    ---------------
+    
+    dchi2_dpars: np.array with derivatives of chi2 w.r.t. pars_ff_fm (force-field and forward-model parameters);
+    
+    dchi2_dlambdas: np.array with derivatives of chi2 w.r.t. lambdas
+        (same order of lambdas in dchi2_dlambdas and in derivatives);
+    
+    derivatives: class with derivatives of pars_ff_fm and lambdas w.r.t. hyperparameters
+        (determined in compute_hyperderivatives).
+
+    ---------------
+    Output: class whose attributes can include dchi2_dlogalpha, dchi2_dlogbeta, dchi2_dloggamma,
+    depending on which hyperparameters are not fixed to infinite.
+    """
     class out_class:
         pass
     out = out_class()
@@ -2308,28 +2326,34 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
 # %% D4. compute_hypergradient
 
 
-"""
-Function **compute_hypergradient** employs previously defined functions (compute_hyperderivatives, compute_chi2_tot,
-put_together) to return selected chi2 and its gradient w.r.t hyperparameters.
-
-Input values:
-- pars_ff_fm: np.array of (force-field and forward-model) parameters;
-- lambdas: dict of dicts with lambda coefficients;
-- log10_alpha, log10_beta, log10_gamma: floats for log (in base 10) of hyperparameters;
-- data_train: training data set, always required to compute derivatives of parameters w.r.t. hyper-parameters;
-- regularization: see above;
-- which_set: str, as explained for compute_chi2_tot;
-- data_test: test data set, required to compute chi2 on the test set (which_set = 'validation' or 'test')
-    (None if useless, namely for which_set = 'training');
-- derivatives_funs: derivative functions computed by Jax (they include those employed in compute_hyperderivatives
-    and dchi2_dpars and/or dchi2_dlambdas).
-"""
-
-
 def compute_hypergradient(
         pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
         which_set, data_test, derivatives_funs):
+    """
+    This tool employs previously defined functions (compute_hyperderivatives, compute_chi2_tot,
+    put_together) to return selected chi2 and its gradient w.r.t hyperparameters.
 
+    Input values:
+    ---------------
+    
+    pars_ff_fm: np.array of (force-field and forward-model) parameters;
+    
+    lambdas: dict of dicts with lambda coefficients;
+    
+    log10_alpha, log10_beta, log10_gamma: floats for log (in base 10) of hyperparameters;
+    
+    data_train: training data set, always required to compute derivatives of parameters w.r.t. hyper-parameters;
+    
+    regularization: see in loss_function;
+    
+    which_set: str, as explained for compute_chi2_tot;
+    
+    data_test: test data set, required to compute chi2 on the test set (which_set = 'validation' or 'test')
+        (None if useless, namely for which_set = 'training');
+    
+    derivatives_funs: derivative functions computed by Jax (they include those employed in compute_hyperderivatives
+        and dchi2_dpars and/or dchi2_dlambdas).
+    """
     system_names = data_train['global'].system_names
 
     """ compute derivatives of optimal pars w.r.t. hyper parameters """
@@ -2404,16 +2428,13 @@ def compute_hypergradient(
 
 # %% D5. mini_and_chi2_and_grad
 
-"""
-Function **mini_and_chi2_and_grad** minimizes loss function at given hyperparameters, compute the chi2 and
-its gradient w.r.t. hyperparameters
-"""
-
-
 def mini_and_chi2_and_grad(
         data, test_frames, test_obs, regularization, alpha, beta, gamma,
         starting_pars, which_set, derivatives_funs):
-
+    """
+    This tool minimizes the loss function at given hyperparameters, computes the chi2 and
+    its gradient w.r.t. hyperparameters
+    """
     out = select_traintest(data, test_frames=test_frames, test_obs=test_obs)
     data_train = out[0]
     data_test = out[1]
@@ -2439,34 +2460,45 @@ def mini_and_chi2_and_grad(
 # %% D6. hyper_function
 
 
-"""
-Function **hyper_function** determines optimal parameters by minimizing loss function at given hyperparameters;
-then, it computes chi2 and its gradient w.r.t hyperparameters (for the optimal parameters).
-
-Input values:
-- log10_hyperpars: np.array for log10 hyperparameters;
-- map_hyperpars: legend for log10_hyperparameters (they refer to alpha, beta, gamma in this order,
-    but some of them may not be present, if fixed to infinite);
-- data, regularization;
-- test_obs, test_frames: dicts of test observables and test frames indicized by seeds;
-- which_set: str (see for compute_chi2_tot);
-- derivatives_funs: derivative functions computed by Jax and employed in compute_hypergradient;
-- starting_pars: starting parameters, if user-defined; None otherwise.
-
-It returns:
-- tot_chi2: float for total chi2;
-- tot_gradient: np.array for gradient of total chi2 w.r.t hyperparameters;
-- Results: class of Results given by minimizer.
-
-Global: hyper_intermediate, in order to follow steps of minimization.
-"""
-
-
 def hyper_function(
         log10_hyperpars, map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs,
         starting_pars, n_parallel_jobs):
+    """
+    Function **hyper_function** determines optimal parameters by minimizing loss function at given hyperparameters;
+    then, it computes chi2 and its gradient w.r.t hyperparameters (for the optimal parameters).
 
-    """ 0. input values """
+    Input values:
+    --------------
+    
+    log10_hyperpars: np.array for log10 hyperparameters;
+    
+    map_hyperpars: legend for log10_hyperparameters (they refer to alpha, beta, gamma in this order,
+        but some of them may not be present, if fixed to infinite);
+    
+    data, regularization;
+    
+    test_obs, test_frames: dicts of test observables and test frames indicized by seeds;
+    
+    which_set: str (see for compute_chi2_tot);
+    
+    derivatives_funs: derivative functions computed by Jax and employed in compute_hypergradient;
+    
+    starting_pars: starting parameters, if user-defined; None otherwise.
+
+    --------------
+    It returns:
+    --------------
+    
+    tot_chi2: float for total chi2;
+    
+    tot_gradient: np.array for gradient of total chi2 w.r.t hyperparameters;
+    
+    Results: class of Results given by minimizer.
+
+    --------------
+    Global: hyper_intermediate, in order to follow steps of minimization.
+    """
+    # 0. input values
 
     i = 0
     if 'alpha' in map_hyperpars:
@@ -2548,28 +2580,32 @@ def hyper_function(
 # %% D7. hyper_minimizer
 
 
-"""
-This function **hyper_minimizer** optimizes hyper-parameters by minimizing the selected chi2 (training, valdiation or test)
-over different splitting of the full data set into training/test set.
-
-Input values:
-- data: full data set;
-- starting_alpha, starting_beta, starting_gamma: float for starting point of respective hyperparameters
-    (np.inf by default, namely no refinement in that direction);
-- regularization (None by default);
-- random_states: used for select_traintest, it can be an integer (in this case, random_states = np.arange(random_states))
-    or a list of values;
-- which_set: str in 'training', 'validation', 'test' (as described in compute_chi2_tot) ('validation' by default);
-- gtol: float for tolerance of scipy.optimize.minimize (0.5 by default);
-- starting_pars: np.array of starting parameters pars_ff_fm for minimization (None by default).
-"""
-
-
 def hyper_minimizer(
         data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf,
         regularization=None, random_states=1, replica_infos=None, which_set='validation',
         gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None):
+    """
+    This tool optimizes hyper-parameters by minimizing the selected chi2 (training, valdiation or test)
+    over different splitting of the full data set into training/test set.
 
+    Input values:
+    --------------
+    data: full data set;
+    
+    starting_alpha, starting_beta, starting_gamma: float for starting point of respective hyperparameters
+        (np.inf by default, namely no refinement in that direction);
+    
+    regularization (None by default);
+    
+    random_states: used for select_traintest, it can be an integer (in this case, random_states = np.arange(random_states))
+        or a list of values;
+    
+    which_set: str in 'training', 'validation', 'test' (as described in compute_chi2_tot) ('validation' by default);
+    
+    gtol: float for tolerance of scipy.optimize.minimize (0.5 by default);
+    
+    starting_pars: np.array of starting parameters pars_ff_fm for minimization (None by default).
+    """
     if starting_alpha <= 0:
         print('alpha cannot be negative or zero; starting with alpha = 1')
         starting_alpha = 1
@@ -2677,29 +2713,34 @@ def hyper_minimizer(
 # %% D8. MDRefinement
 
 
-"""
-This function **MDRefinement** loads data, searches for the optimal hyperparameters and minimizes the whole data set
-using determined hyperparameters.
-
-Required inputs:
-- infos: dict of information to load data with load_data;
-- regularization: regularizations for force-field and forward-model corrections;
-- stride: int for stride used to load data employed in search for optimal hyperparameters
-    (for the final minimization full the whole set is employed);
-- starting_alpha, starting_beta, starting_gamma: floats for starting values of hyperparameters
-    (np.inf by default, namely no refinement in that direction);
-- random_states: see for hyper_minimizer (5 by default);
-- which_set: str in 'training', 'validation', 'test' (as described in compute_chi2_tot) ('validation' by default);
-- gtol: float for tolerance of scipy.optimize.minimize (0.5 by default).
-"""
-
-
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
         random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
         results_folder_name: str = 'results', n_parallel_jobs: float = None):
+    """
+    This tool loads data, searches for the optimal hyperparameters and minimizes the whole data set
+    using determined hyperparameters.
 
+    Required inputs:
+    ----------------
+    
+    infos: dict of information to load data with load_data;
+    
+    regularization: regularizations for force-field and forward-model corrections;
+    
+    stride: int for stride used to load data employed in search for optimal hyperparameters
+        (for the final minimization full the whole set is employed);
+    
+    starting_alpha, starting_beta, starting_gamma: floats for starting values of hyperparameters
+        (np.inf by default, namely no refinement in that direction);
+    
+    random_states: see for hyper_minimizer (5 by default);
+    
+    which_set: str in 'training', 'validation', 'test' (as described in compute_chi2_tot) ('validation' by default);
+    
+    gtol: float for tolerance of scipy.optimize.minimize (0.5 by default).
+    """
     data = load_data(infos, stride=stride)
 
     print('\nsearch for optimal hyperparameters ...')
