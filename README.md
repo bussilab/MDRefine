@@ -3,7 +3,7 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/MDRefine)](https://pypi.org/project/MDRefine/)
 [![CI](https://github.com/bussilab/MDRefine/workflows/CI/badge.svg)](https://github.com/bussilab/MDRefine/actions?query=workflow%3ACI)
 
-A package to perform refinement of MD simulation trajectories.
+A package to perform refinement of MD simulation trajectories. Documentation can be browsed at [this page](https://bussilab.github.io/doc-MDRefine/)
 
 To install package and dependencies with pip (version from PyPI):
 
