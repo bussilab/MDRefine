@@ -1,5 +1,8 @@
 """A package to perform refinement of MD simulation trajectories.
 
+Source code is on [GitHub](https://github.com/bussilab/MDRefine).
+A test pdf manual is available [here](../MDRefine.pdf).
+
 ### Examples
 
 In the [examples](../examples) directory you can find a number of notebooks
