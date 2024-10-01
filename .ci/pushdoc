@@ -15,7 +15,7 @@ cat > index.html << EOF
 <html>
 <head>
 <title>Page Auto Redirect</title>
-<meta http-equiv="refresh" content ="0; bussilab/index.html">
+<meta http-equiv="refresh" content ="0; MDRefine/index.html">
 </head>
 <body>
 This is an auto redirect page.
