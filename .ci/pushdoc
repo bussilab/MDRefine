@@ -8,7 +8,7 @@ cd doc
 git init
 git config user.email giovanni.bussi+bussilabbot@gmail.com
 git config user.name bussilabbot
-git remote add doc https://bussilabbot:$@MDREFINE_DOC@github.com/bussilab/doc-MDRefine
+git remote add doc https://bussilabbot:$MDREFINE_DOC@github.com/bussilab/doc-MDRefine
 
 cat > index.html << EOF
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
