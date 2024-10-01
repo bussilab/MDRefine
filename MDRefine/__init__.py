@@ -1,6 +1,9 @@
 """A package to perform refinement of MD simulation trajectories.
 
-TODO
+### Examples
+
+In the [examples](../examples) directory you can find a number of notebooks
+that can be used as a source of inspiration.
 """
 
 from ._version import __version__
