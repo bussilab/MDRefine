@@ -119,12 +119,6 @@ jobs:
         conda create -n py310 -c conda-forge -c local python=3.10 MDRefine pytest
         source activate py310
         pytest -v
-    - name: Test 3.9
-      run: |
-        source activate base
-        conda create -n py39 -c conda-forge -c local python=3.9 MDRefine pytest
-        source activate py39
-        pytest -v
     - name: Deploy conda
       if: ${{ matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/') }}
       #env:
