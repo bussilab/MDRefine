@@ -431,11 +431,10 @@ def load_data(infos, *, stride=1):
 
 
 def compute_js(n_experiments):
-
     """
-    This tool computes the indices js (cumulative sums) for lambdas corresponding to different systems and
-    types of observables. Be careful to follow always the same order: let's choose it as that of **data.n_experiments**,
-    which is a dictionary n_experiments[name_sys][name].
+    This tool computes the indices `js` (defined by cumulative sums) for lambdas corresponding to different molecular systems and
+    types of observables. Be careful to follow always the same order: let's choose it as that of `data.n_experiments`,
+    which is a dictionary `n_experiments[name_sys][name]`.
     """
 
     js = []
@@ -460,10 +459,8 @@ def compute_js(n_experiments):
 def compute_new_weights(weights: np.array, correction: np.array):
     """
     This tool computes the new weights as weights*exp(-correction).
-    It modifies input weights and correction:
-    - weights are normalized;
-    - correction is shifted by correction -= shift, where shift = np.min(correction).
-    It returns array **new_weights** and float **logZ**.
+    It modifies input variables: `weights` are normalized and `correction` is shifted by `correction -= shift`, where `shift = np.min(correction)`.
+    It returns two variables: a Numpy array `new_weights` and a float `logZ`.
     """
 
     weights = weights/np.sum(weights)
@@ -485,30 +482,31 @@ def compute_new_weights(weights: np.array, correction: np.array):
 
 def gamma_function(lambdas: np.array, g: np.array, gexp: np.array, weights: np.array, alpha: float, if_gradient: bool = False):
     """
-    This tool computes value of gamma function and (if if_gradient) its derivatives and av_g.
-    Make sure that lambdas follow the same order as g, gexp (let's use that of data.n_experiments).
+    This tool computes gamma function and (if `if_gradient`) its derivatives and the average values of the observables `av_g`.
+    
+    Make sure that `lambdas` follow the same order as `g`, `gexp` (let's use that of `data.n_experiments`).
 
-    Parameters:
+    Input variables:
     -----------
     
-    lambdas: a 1D array of length N; lambdas[j] is lambda value for j-th observable;
+    lambdas : array_like
+        Numpy 1-dimensional array of length N, where `lambdas[j]` is the lambda value for the j-th observable.
     
-    g: a 2D array (M x N); g[i,j] is j-th observable computed in the i-th frame;
+    g : array_like
+        Numpy 2-dimensional array (M x N); `g[i,j]` is the j-th observable computed in the i-th frame.
     
-    gexp: a 2D array (N x 2); g[j,0] is experimental value of i-th observable, g[j,1] is the associated uncertainty;
+    gexp : array_like
+        Numpy 2-dimensional array (N x 2); `g[j,0]` is the experimental value of the i-th observable, `g[j,1]` is the associated experimental uncertainty.
     
-    weights: a 1D array of length M; w[i] is weight of i-th frame (possibly non-normalized);
+    weights : array_like
+        Numpy 1-dimensional array of length M; `w[i]` is the weight of the i-th frame (possibly non-normalized).
     
-    alpha: float; value of the hyper parameter;
+    alpha : float
+        The value of the alpha hyperparameter.
     
-    if_gradient: boolean.
+    if_gradient : bool
+        If true, return also the gradient of the gamma function.
     ----------------------
-
-    Output:
-    - gammaf: float value of gamma function;
-    - if if_gradient:
-        - grad: a 1D array of length N; the gradient of gamma function with respect to lambdas;
-        - av_g: a 1D array of length N; average value of j-th observable (average over new_weights).
     """
     correction_lambdas = np.matmul(g, lambdas)
     newweights, logZlambda = compute_new_weights(weights, correction_lambdas)
@@ -579,17 +577,21 @@ def normalize_observables(gexp, g, weights=None):
 def compute_D_KL(weights_P: np.array, correction_ff: np.array, temperature: float, logZ_P: float):
     """
     This tool computes the Kullback-Leibler divergence of $P(x) = 1/Z P_0 (x) e^(-V(x)/T)$
-    w.r.t. $P_0 (x)$ as $<V>_P / T + \log Z$.
+    with respect to $P_0 (x)$ as $<V>_P / T + \log Z$.
     
-    Input values:
+    Input variables:
     --------------
-    - weights_P: 1D array for P(x);
+    weights_P : array_like
+        Numpy 1-dimensional array for the normalized weights P(x).
 
-    - correction_ff: 1D array for V(x);
+    correction_ff : array_like
+        Numpy 1-dimensional array for the reweighting potential V(x).
     
-    - temperature: float for T;
+    temperature: float
+        The value of temperature T, in measure units consistently with V(x), namely, such that V(x)/T is adimensional.
     
-    - logZ_P: float for log Z.
+    logZ_P: float
+        The value of log Z.
     """
     weighted_ff = weights_P*np.array(correction_ff)
     av_ff = np.nansum(weighted_ff, axis=0)
@@ -633,23 +635,40 @@ def l2_regularization(pars: np.array, choice: str = 'plain l2'):
 
 def compute_chi2(ref, weights, g, gexp, if_separate=False):
     """
-    This tool computes the chi2 (for a given system).
+    This tool computes the chi2 (for a given molecular system).
     
     Input values:
     --------------
-    - ref (dict for references: '=', '>', '<', '><');
-    - weights (1D np.array);
-    - g (dict for observables);
-    - gexp (dict for experimental values);
-    - if_separate (boolean, True if you are distinguishing between LOWER and UPPER bounds (name_type + ' LOWER' or
-        name_type + ' UPPER'), needed for minimizations with double bounds.)
+    ref : dict
+        Dictionary for references (`=`, `>`, `<`, `><`) used to compute the appropriate chi2.
     
-    It returns 3 dicts with keys running over different kinds of observables and 1 float:
+    weights : array_like
+        Numpy 1-dimensional array of weights.
+    
+    g : dict
+        Dictionary of observables specific for the given molecular system.
+
+    gexp : dict
+        Dictionary of experimental values specific for the given molecular system (coherently with `g`).
+
+    if_separate: bool
+        Boolean variable, True if you are distinguishing between LOWER and UPPER bounds (`name_type + ' LOWER'` or
+        `name_type + ' UPPER'`), needed for minimizations with double bounds.
+    --------------
+
+    This tool returns 4 variables: 3 dictionaries (with keys running over different kinds of observables) and 1 float
     ---------------------------------------------
-    - av_g (dict for average values);
-    - chi2 (dict for chi2);
-    - rel_diffs (dict for relative differences);
-    - tot_chi2 (total chi2 for the given system).
+        av_g : dict
+            Dictionary of average values of the observables `g`.
+
+        chi2 : dict
+            Dictionary of chi2.
+        
+        rel_diffs: dict
+            Dicionary of relative differences.
+        
+        tot_chi2: float
+            Total chi2 for the given molecular system.
     """
     av_g = {}
     rel_diffs = {}
@@ -754,26 +773,32 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
 
 def compute_details_ER(weights_P, g, data, lambdas, alpha):
     """
-    This tool computes the contribution to the loss function due to Ensemble Refinement
-    explicitely (namely, 1/2*chi2 + alpha*D_KL) and compare this value with -alpha*Gamma (they must be equal: check).
-    It cycles over different systems. It acts in the end of the minimization of loss_function (not for the minimization
+    This tool computes explicitely the contribution to the loss function due to Ensemble Refinement
+    (namely, 1/2 chi2 + alpha D_KL) and compare this value with -alpha*Gamma (they are equal in the minimum: check).
+    It cycles over different systems. It acts in the end of the minimization of `loss_function` (not for the minimization
     itself, since we exploit the Gamma function).
-    Be careful to use either: normalized values for lambdas and g (if hasattr(data,'normg_mean')) or non-normalized
-    (if not hasattr(data,'normg_mean')).
+
+    Be careful to use either: normalized values for `lambdas` and `g` (if `hasattr(data,'normg_mean')`) or non-normalized ones
+    (if `not hasattr(data,'normg_mean')`).
     
-    Inputs:
+    Input variables:
     ------------
-    weights_P (dict of np.arrays): the weights on which Ensemble Refinement acts (those with force-field correction
-        in the fully combined refinement);
+    weights_P : dict
+        Dictionary of Numpy arrays, namely, the weights on which Ensemble Refinement acts (those with force-field correction
+        in the fully combined refinement).
+        
+    g : dict
+        Dictionary of dictionaries, like for `data[name_sys].g`, corresponding to the observables (computed with updated forward-model coefficients).
     
-    g (dict of dicts): the observables (with updated forward-model coefficients);
+    data : dict
+        The original data object.
     
-    data (dict of classes): the original data;
+    lambdas : dict
+        Dictionary of Numpy arrays, corresponding to the coefficients for Ensemble Refinement.
     
-    lambdas (dict of np.arrays): the coefficients for Ensemble Refinement;
-    
-    alpha (float): the hyper-parameter for Ensemble Refinement.
-    ------------------------------
+    alpha : float
+        The alpha hyperparameter, for Ensemble Refinement.
+    ------------
     Output: instance of Details_class.
     """
     if hasattr(data, 'normg_mean'):
@@ -1196,11 +1221,9 @@ def loss_function_and_grad(
 
 def deconvolve_lambdas(data, lambdas: np.array, if_denormalize: bool = True):
     """
-    This tool deconvolves lambdas from np.array to dict of dicts (corresponding to data[name_sys].g);
-    if if_denormalize, then lambdas has been computed with normalized data, so use data[name_sys].normg_std and normg_mean
-    in order to go back to corresponding lambdas for non-normalized data.
-    Input values: data; lambdas (np.array); if_denormalize (bool, True by default).
-    The order of lambdas is the one described in compute_js.
+    This tool deconvolves `lambdas` from Numpy array to dictionary of dictionaries (corresponding to `data[name_sys].g`);
+    if `if_denormalize`, then `lambdas` has been computed with normalized data, so use `data[name_sys].normg_std` and `data[name_sys].normg_mean`
+    in order to go back to corresponding lambdas for non-normalized data. The order of `lambdas` is the one described in `compute_js`.
     """
     dict_lambdas = {}
 
@@ -2023,22 +2046,27 @@ def compute_hyperderivatives(
     Input values:
     --------------
     
-    pars_ff_fm: np.array for force-field and forward-model coefficients;
+    pars_ff_fm: array_like
+        Numpy array for force-field and forward-model coefficients.
     
-    lambdas: np.array for lambdas coefficients (those for ensemble refinement);
+    lambdas: array_like
+        Numpy array for lambdas coefficients (those for ensemble refinement).
     
-    data: dict for data set;
+    data: dict
+        The `data` object.
     
-    regularization: see in loss_function;
+    regularization: dict
+        The regularization of force-field and forward-model corrections (see in `MDRefinement`).
     
-    derivatives_funs: class of derivatives functions computed by Jax;
+    derivatives_funs: class instance
+        Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax.
     
-    log10_alpha, log10_beta, log10_gamma: floats for log (in base 10) of corresponding hyperparameters
-        (np.inf by default).
+    log10_alpha, log10_beta, log10_gamma: floats
+        Logarithms (in base 10) of the corresponding hyperparameters alpha, beta, gamma (`np.inf` by default).
 
-    ----------------
-    It returns instance of class derivatives, which includes as attributes values of derivatives required in the following:
-    they include dlambdas_dlogalpha, dlambdas_dpars, dpars_dlogalpha, dpars_dlogbeta, dpars_dloggamma.
+    --------------
+    It returns an instance of the class `derivatives`, which includes as attributes the numerical values of 
+    the derivatives `dlambdas_dlogalpha`, `dlambdas_dpars`, `dpars_dlogalpha`, `dpars_dlogbeta`, `dpars_dloggamma`.
     """
     system_names = data['global'].system_names
 
@@ -2239,22 +2267,27 @@ def compute_hyperderivatives(
 
 def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gamma, which_set):
     """
-    This tool returns the total chi2 (float) for training or test data set, according to **which_set**
-    (which_set = 'training' for chi2 on training set, 'validation' for chi2 on training observables but new frames,
-    'test' for chi2 on test observables and new frames, through validation function).
+    This tool returns the total chi2 (float variable) for training or test data set, according to `which_set`
+    (`which_set = 'training'` for chi2 on the training set, `'validation'` for chi2 on training observables and test frames,
+    `'test'` for chi2 on test observables and test frames, through validation function).
 
     Input values:
     ---------------
     
-    pars_ff_fm, lambdas: np.arrays for (force-field + forward-model) parameters and lambdas parameters, respectively;
+    pars_ff_fm, lambdas: array_like
+        Numpy arrays for (force-field + forward-model) parameters and lambdas parameters, respectively.
     
-    data: dict for data set;
+    data: dict
+        Dictionary of data set object.
     
-    regularization: dict for regularizations (see in loss_function);
+    regularization: dict
+        Specified regularizations of force-field and forward-model corrections (see in `MDRefinement`).
     
-    alpha, beta, gamma: floats for hyperparameters;
+    alpha, beta, gamma: float
+        Values of the hyperparameters.
     
-    which_set: str, as explained above.
+    which_set: str
+        String variable, chosen among `'training'`, `'validation'` or `'test'` as explained above.
     """
     if which_set == 'training' or which_set == 'validation':
         tot_chi2 = 0
@@ -2333,28 +2366,36 @@ def compute_hypergradient(
         pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
         which_set, data_test, derivatives_funs):
     """
-    This tool employs previously defined functions (compute_hyperderivatives, compute_chi2_tot,
-    put_together) to return selected chi2 and its gradient w.r.t hyperparameters.
+    This tool employs previously defined functions (`compute_hyperderivatives`, `compute_chi2_tot`,
+    `put_together`) to return selected chi2 and its gradient w.r.t hyperparameters.
 
     Input values:
     ---------------
     
-    pars_ff_fm: np.array of (force-field and forward-model) parameters;
+    pars_ff_fm: array_like
+        Numpy array of (force-field and forward-model) parameters.
     
-    lambdas: dict of dicts with lambda coefficients;
+    lambdas: dict
+        Dictionary of dictionaries with lambda coefficients (corresponding to Ensemble Refinement).
     
-    log10_alpha, log10_beta, log10_gamma: floats for log (in base 10) of hyperparameters;
+    log10_alpha, log10_beta, log10_gamma: floats
+        Logarithms (in base 10) of the hyperparameters alpha, beta, gamma.
     
-    data_train: training data set, always required to compute derivatives of parameters w.r.t. hyper-parameters;
+    data_train: dict
+        The training data set object, which is anyway required to compute the derivatives of parameters w.r.t. hyper-parameters.
     
-    regularization: see in loss_function;
+    regularization: dict
+        Specified regularizations (see in `MDRefinement`).
     
-    which_set: str, as explained for compute_chi2_tot;
+    which_set: str
+        String indicating which set defines the chi2 to minimize in order to get the optimal hyperparameters (see in `compute_chi2_tot`).
     
-    data_test: test data set, required to compute chi2 on the test set (which_set = 'validation' or 'test')
-        (None if useless, namely for which_set = 'training');
+    data_test: dict
+        The test data set object, which is required to compute the chi2 on the test set (when `which_set == 'validation' or 'test'`;
+        otherwise, if `which_set = 'training'`, it is useless, so it can be set to `None`).
     
-    derivatives_funs: derivative functions computed by Jax (they include those employed in compute_hyperderivatives
+    derivatives_funs: class instance
+        Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax.derivative functions computed by Jax (they include those employed in compute_hyperderivatives
         and dchi2_dpars and/or dchi2_dlambdas).
     """
     system_names = data_train['global'].system_names
@@ -2470,36 +2511,49 @@ def hyper_function(
     Function **hyper_function** determines optimal parameters by minimizing loss function at given hyperparameters;
     then, it computes chi2 and its gradient w.r.t hyperparameters (for the optimal parameters).
 
-    Input values:
+    Input variables:
     --------------
     
-    log10_hyperpars: np.array for log10 hyperparameters;
+    log10_hyperpars: array_like
+        Numpy array for log10 hyperparameters alpha, beta, gamma (in this order, when present).
     
-    map_hyperpars: legend for log10_hyperparameters (they refer to alpha, beta, gamma in this order,
-        but some of them may not be present, if fixed to infinite);
+    map_hyperpars: list
+        Legend for `log10_hyperpars` (they refer to alpha, beta, gamma in this order,
+        but some of them may not be present, if fixed to `+np.inf`).
     
-    data, regularization;
+    data, regularization: dicts
+        Dictionaries for `data` and `regularization` objects.
     
-    test_obs, test_frames: dicts of test observables and test frames indicized by seeds;
+    test_obs, test_frames: dicts
+        Dictionaries for test observables and test frames, indicized by seeds.
     
-    which_set: str (see for compute_chi2_tot);
+    which_set: str
+        String, see for `compute_chi2_tot`.
     
-    derivatives_funs: derivative functions computed by Jax and employed in compute_hypergradient;
+    derivatives_funs: class instance
+        Derivative functions computed by `Jax` and employed in `compute_hypergradient`.
     
-    starting_pars: starting parameters, if user-defined; None otherwise.
+    starting_pars: float
+        Starting values of the parameters, if user-defined; `None` otherwise.
+
+    n_parallel_jobs: int
+        Number of parallel jobs.
 
     --------------
     It returns:
     --------------
     
-    tot_chi2: float for total chi2;
+    tot_chi2: float
+        Float value of total chi2.
     
-    tot_gradient: np.array for gradient of total chi2 w.r.t hyperparameters;
+    tot_gradient: array_like
+        Numpy array for gradient of total chi2 with respect to the hyperparameters.
     
-    Results: class of Results given by minimizer.
+    Results: class instance
+        Results given by `minimizer`.
 
     --------------
-    Global: hyper_intermediate, in order to follow steps of minimization.
+    Global variable: `hyper_intermediate`, in order to follow steps of minimization.
     """
     # 0. input values
 
@@ -2723,7 +2777,8 @@ def MDRefinement(
         results_folder_name: str = 'results', n_parallel_jobs: int = None):
     """
     This is the main tool of the package: it loads data, searches for the optimal hyperparameters and minimizes the loss function on the whole data set
-    by using the opimized hyperparameters.
+    by using the opimized hyperparameters. The output variables are then saved in a folder; they include `input` values, `min_lambdas` (optimal lambda coefficients for Ensemble Refinement, when performed),
+    `result`, `hyper_search` (steps in the search for optimal hyperparameters) (`csv` files) and the `npy` arrays with the new weights determined in the refinement.
 
     Required inputs:
     ----------------
@@ -2745,26 +2800,27 @@ def MDRefinement(
     starting_alpha, starting_beta, starting_gamma : floats
         Starting values of the hyperparameters (`np.inf` by default, namely no refinement in that direction).
     
-    random_states: int or list of integers
+    random_states : int or list of integers
         Random states (i.e., seeds) used to split the data set in cross validation (if integer, then `random_states = np.arange(random_states)`.
     
-    which_set: str
-        String chosen among `training`, `validation` or `test`, which specifies how to determine optimal hyperparameters:
-        if minimizing the (average) chi2 on the training set for `training`, on training observables and test frames for `validation`,
+    which_set : str
+        String chosen among `training`, `'validation'` or `test`, which specifies how to determine optimal hyperparameters:
+        if minimizing the (average) chi2 on the training set for `training`, on training observables and test frames for `'validation'`,
         on test observables for `test`.
     
-    gtol: float
+    gtol : float
         Tolerance `gtol` (on the gradient) of scipy.optimize.minimize (0.5 by default).
 
-    ftol: float
+    ftol : float
         Tolerance `ftol` of scipy.optimize.minimize (0.05 by default).
 
-    results_folder_name: str
+    results_folder_name : str
         String for the prefix of the folder where to save results; the complete folder name is `results_folder_name + '_' + time` where `time` is the current time
         when the algorithm has finished, in order to uniquely identify the folder with the results.
     
-    n_parallel_jobs: int
+    n_parallel_jobs : int
         How many jobs are run in parallel (`None` by default).
+    ----------------
     """
     data = load_data(infos, stride=stride)
 
