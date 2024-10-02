@@ -24,11 +24,15 @@ config.update("jax_enable_x64", True)
 
 def check_and_skip(data, *, stride=1):
     """
-    This function is an internal tool used in **load_data** to modify input **data**:
-    - it appends observables computed through forward models (if any) to data.g;
-    - if hasattr(data, 'selected_obs'): it removes non-selected observables from data.forward_qs;
-    - select frames with given **stride**;
-    - count n. experiments and n. frames (data[name_sys].n_frames and data[name_sys].n_experiments)
+    This function is an internal tool used in `load_data` to modify input `data`:
+
+    - it appends observables computed through forward models (if any) to `data.g`;
+    
+    - if `hasattr(data, 'selected_obs')`: it removes non-selected observables from `data.forward_qs`;
+    
+    - select frames with given `stride`;
+    
+    - count n. experiments and n. frames (`data[name_sys].n_frames` and `data[name_sys].n_experiments`)
     and check corresponding matching.
     """
 
@@ -184,7 +188,6 @@ class data_global_class:
             for item in data[k].n_experiments.values():
                 tot += item
         return tot
-
 
 
 class data_class:
@@ -345,9 +348,9 @@ class data_cycle_class:
 
 def load_data(infos, *, stride=1):
     """
-    This tool loads data from specified directory as indicated by the user in **infos**
-    to a dictionary **data** of classes, which includes data['global'] (global properties) and data[system_name];
-    for alchemical calculations, there is also data[cycle_name].
+    This tool loads data from specified directory as indicated by the user in `infos`
+    to a dictionary `data` of classes, which includes `data['global']` (global properties) and `data[system_name]`;
+    for alchemical calculations, there is also `data[cycle_name]`.
     """
 
     print('loading data from directory...')
@@ -2717,29 +2720,51 @@ def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
         random_states=5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
-        results_folder_name: str = 'results', n_parallel_jobs: float = None):
+        results_folder_name: str = 'results', n_parallel_jobs: int = None):
     """
-    This tool loads data, searches for the optimal hyperparameters and minimizes the whole data set
-    using determined hyperparameters.
+    This is the main tool of the package: it loads data, searches for the optimal hyperparameters and minimizes the loss function on the whole data set
+    by using the opimized hyperparameters.
 
     Required inputs:
     ----------------
     
-    infos: dict of information to load data with load_data;
+    infos : dict
+        A dictionary of information used to load data with `load_data` (see Examples).
     
-    regularization: regularizations for force-field and forward-model corrections;
+    regularization : dict
+        A dictionary which can include two keys: `force_field_reg` and `forward_model_reg`, to specify the regularizations to the force-field correction and the forward model, respectively;
+        the first key is either a string (among `plain l2`, `constraint 1`, `constraint 2`, `KL divergence`) or a user-defined
+        function which takes as input `pars_ff` and returns the regularization term to be multiplied by the hyperparameter `beta`;
+        the second key is a user-defined function which takes as input `pars_fm` and `forward_coeffs_0` (current and refined forward-model coefficients) and
+        returns the regularization term to be multiplied by the hyperparameter `gamma`.
     
-    stride: int for stride used to load data employed in search for optimal hyperparameters
-        (for the final minimization full the whole set is employed);
+    stride : int
+        The stride of the frames used to load data employed in search for optimal hyperparameters
+        (in order to reduce the computational cost, at the price of a lower representativeness of the ensembles).
     
-    starting_alpha, starting_beta, starting_gamma: floats for starting values of hyperparameters
-        (np.inf by default, namely no refinement in that direction);
+    starting_alpha, starting_beta, starting_gamma : floats
+        Starting values of the hyperparameters (`np.inf` by default, namely no refinement in that direction).
     
-    random_states: see for hyper_minimizer (5 by default);
+    random_states: int or list of integers
+        Random states (i.e., seeds) used to split the data set in cross validation (if integer, then `random_states = np.arange(random_states)`.
     
-    which_set: str in 'training', 'validation', 'test' (as described in compute_chi2_tot) ('validation' by default);
+    which_set: str
+        String chosen among `training`, `validation` or `test`, which specifies how to determine optimal hyperparameters:
+        if minimizing the (average) chi2 on the training set for `training`, on training observables and test frames for `validation`,
+        on test observables for `test`.
     
-    gtol: float for tolerance of scipy.optimize.minimize (0.5 by default).
+    gtol: float
+        Tolerance `gtol` (on the gradient) of scipy.optimize.minimize (0.5 by default).
+
+    ftol: float
+        Tolerance `ftol` of scipy.optimize.minimize (0.05 by default).
+
+    results_folder_name: str
+        String for the prefix of the folder where to save results; the complete folder name is `results_folder_name + '_' + time` where `time` is the current time
+        when the algorithm has finished, in order to uniquely identify the folder with the results.
+    
+    n_parallel_jobs: int
+        How many jobs are run in parallel (`None` by default).
     """
     data = load_data(infos, stride=stride)
 
