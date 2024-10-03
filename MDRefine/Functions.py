@@ -26,6 +26,8 @@ def check_and_skip(data, *, stride=1):
     """
     This function is an internal tool used in `load_data` to modify input `data`:
 
+    - weights are normalized;
+
     - it appends observables computed through forward models (if any) to `data.g`;
     
     - if `hasattr(data, 'selected_obs')`: it removes non-selected observables from `data.forward_qs`;
@@ -166,22 +168,38 @@ class data_global_class:
     ----------------
 
     info_global: dict
-        Dictionary with global information: list of names of the molecular systems `info_global['system_names']`
+        Dictionary with global information:
+        - `info_global['system_names']` with list of names of the molecular systems;
+        - `info_global['cycle_names']` with list of names of the thermodynamic cycles;
+        - `info_global['forward_coeffs']` with string for the file name of forward coefficients;
+        - `info_global['names_ff_pars']` with list of names of the force-field correction coefficients.
 
     path_directory: str
+        String with the path of the directory with input files.
+
+    ----------------
+    Instance variables:
+    ----------------
+    system_names : list
+        List of names of the investigated molecular systems.
+    
+    forward_coeffs_0 : list
+        List of the forward-model coefficients.
+    
+    names_ff_pars : list
+        List of names of the force-field correction parameters.
+
+    cycle_names : list
+        List of names of the investigated thermodynamic cycles.
     """
     def __init__(self, info_global, path_directory):
 
         self.system_names = info_global['system_names']
-        """List of names of the investigated molecular systems."""
 
-        try:
+        if 'forward_coeffs' in info_global.keys():
             temp = pandas.read_csv(path_directory + info_global['forward_coeffs'], header=None)
             temp.index = temp.iloc[:, 0]
             self.forward_coeffs_0 = temp.iloc[:, 1]
-            """List of the forward-model coefficients."""
-        except:
-            assert 'forward_coeffs' not in info_global.keys(), 'Error: missing forward coefficients'
 
             # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
             # if temp.shape[0] == 1:
@@ -189,17 +207,11 @@ class data_global_class:
             # else:
             #     self.forward_coeffs_0 = temp.squeeze()
 
-        try:
+        if 'names_ff_pars' in info_global.keys():
             self.names_ff_pars = info_global['names_ff_pars']
-            """List of names of the force-field correction parameters."""
-        except:
-            assert 'names_ff_pars' not in info_global.keys(), 'Error: missing names of force-field correction parameters'
-
-        try:
+        
+        if 'cycle_names' in info_global.keys():
             self.cycle_names = info_global['cycle_names']
-            """List of names of the investigated thermodynamic cycles."""
-        except:
-            assert 'cycle_names' not in info_global.keys(), 'Error: missing names of thermodynamic cycles'
 
     def tot_n_experiments(self, data):
         """This method computes the total n. of experiments."""
@@ -215,31 +227,6 @@ class data_global_class:
 class data_class:
     """
     Data object of a molecular system.
-    -----------
-    temperature : float
-        Value for the temperature at which the trajectory is simulated.
-    
-    gexp : dict
-        Dictionary of Numpy 2-dimensional arrays  (N x 2); `gexp[j,0]` is the experimental value of the j-th observable, `gexp[j,1]` is the corresponding uncertainty.
-    
-    names : dict
-        Dictionary names of the observables
-    
-    ref : dict
-    
-    g : dict
-        Dictionary of Numpy 2-dimensional array (M x N); `g[i,j]` is the j-th observable computed in the i-th frame.
-    
-    forward_qs : quantities for the forward model
-    
-    forward_model
-    
-    weights: array_like
-        Numpy 1-dimensional array of length M; `w[i]` is the weight of the i-th frame.
-    
-    f: terms required to compute the force-field correction
-    
-    ff_correction: function which defines the force-field correction
 
     Input variables:
     ----------------
@@ -250,7 +237,44 @@ class data_class:
         String for the path of the directory with data of the molecular system `name_sys`.
 
     name_sys: str
-        String for the name of the molecular system.
+        Name of the molecular system taken into account.
+    
+    --------------
+    Instance variables:
+    --------------
+    temperature : float
+        Value for the temperature at which the trajectory is simulated.
+    
+    gexp : dict
+        Dictionary of Numpy 2-dimensional arrays (N x 2); `gexp[j,0]` is the experimental value of the j-th observable, `gexp[j,1]` is the corresponding uncertainty;
+        the size N depends on the type of observable.
+    
+    names : dict
+        Dictionary of Numpy 1-dimensional arrays of length N with the names of the observables of each type.
+    
+    ref : dict
+        Dictionary of strings with signs `'=', '>', '<', '><' used to define the chi2 to compute,
+        depending on the observable type.
+    
+    g : dict
+        Dictionary of Numpy 2-dimensional arrays (M x N), where `g[name][i,j]` is the j-th observable of that type computed in the i-th frame.
+    
+    forward_qs : dict
+        Dictionary of Numpy 2-dimensional arrays (M x N) with the quantities required for the forward model.
+    
+    forward_model: function
+        Function for the forward model, whose input variables are the forward-model coefficients `fm_coeffs` and the `forward_qs` dictionary;
+        a third optional argument is the `selected_obs` (dictionary with indices of selected observables).
+    
+    weights: array_like
+        Numpy 1-dimensional array of length M with the weights (not required to be normalized).
+    
+    f: dict
+        Numpy 2-dimensional array (M x P) of terms required to compute the force-field correction,
+        where P is the n. of parameters `pars` and M is the n. of frames.
+    
+    ff_correction: function
+        Function for the force-field correction, whose input variables are the force-field correction parameters `pars` and the `f` array (sorted consistently with each other).
     """
     def __init__(self, info, path_directory, name_sys):
 
@@ -386,7 +410,6 @@ class data_class:
                 print('error: missing MD data for %s!' % name_sys)
 
         self.weights = self.weights/np.sum(self.weights)
-        """normalized weights"""
 
         # 5. f (force field correction terms) and function
 
@@ -402,10 +425,32 @@ class data_class:
 
 
 class data_cycle_class:
+    """
+    Data object of a thermodynamic cycle.
+    
+    Input variables:
+    -------------------
+    cycle_name : str
+        String with the name of the thermodynamic cycle taken into account.
+    
+    DDGs_exp : pandas.DataFrame
+        Pandas.DataFrame with the experimental values and uncertainties of Delta Delta G in labelled thermodynamic cycles.
+
+    info: dict
+        Dictionary for the information about the temperature of `cycle_name` thermodynamic cycle. 
+
+    -------------------
+    Instance variables:
+    -------------------
+    gexp_DDG : list
+        List of two elements: the experimental value and uncertainty of the Delta Delta G.
+    
+    temperature : float
+        Value of temperature.
+    """
     def __init__(self, cycle_name, DDGs_exp, info):
 
         self.gexp_DDG = [DDGs_exp.loc[:, cycle_name].iloc[0], DDGs_exp.loc[:, cycle_name].iloc[1]]
-        """List of experimental values of the Delta Delta G, with associated uncertainties."""
 
         if 'temperature' in info.keys():
             self.temperature = info['temperature']
@@ -1366,6 +1411,7 @@ def deconvolve_lambdas(data, lambdas: numpy.ndarray, if_denormalize: bool = True
 
 
 class intermediates_class:
+    """Class for the intermediate steps of the minimization of the loss function."""
     def __init__(self, alpha):
         
         self.loss = []
@@ -1379,7 +1425,6 @@ class intermediates_class:
 def minimizer(
         original_data, *, regularization: dict = None, alpha: float = +numpy.inf, beta: float = +numpy.inf, gamma: float = +numpy.inf,
         gtol: float = 1e-3, gtol_inn: float = 1e-3, data_test: dict = None, starting_pars: numpy.ndarray = None):
-
     """
     This tool minimizes loss_function on `original_data` and do `validation` on `data_test` (if `not None`), at given hyperparameters.
 
