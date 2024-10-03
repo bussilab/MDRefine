@@ -192,8 +192,32 @@ class data_global_class:
 
 class data_class:
     """
-    temperature, gexp (experimental values) and names of the observables, ref, g (observables), forward_qs (quantities for the forward model) and forward_model
-    weights (normalized), f (force field correction terms) and function ff_correction
+    Define an instance for each molecular system, which contains the following attributes:
+    ---------------
+    temperature : float
+        Value for the temperature at which the trajectory is simulated.
+    
+    gexp : dict
+        Dictionary of Numpy 2-dimensional arrays  (N x 2); `gexp[j,0]` is the experimental value of the j-th observable, `gexp[j,1]` is the corresponding uncertainty.
+    
+    names : dict
+        Dictionary names of the observables
+    
+    ref : dict
+    
+    g : dict
+        Dictionary of Numpy 2-dimensional array (M x N); `g[i,j]` is the j-th observable computed in the i-th frame.
+    
+    forward_qs : quantities for the forward model
+    
+    forward_model
+    
+    weights: array_like
+        Numpy 1-dimensional array of length M; `w[i]` is the weight of the i-th frame.
+    
+    f: terms required to compute the force-field correction
+    
+    ff_correction: function which defines the force-field correction
 
     Input variables:
     ----------------
@@ -304,7 +328,7 @@ class data_class:
                     out = info['forward_model'](a, b)
                 return out
 
-            self.forward_model = my_forward_model # info['forward_model']
+            self.forward_model = my_forward_model  # info['forward_model']
 
             self.forward_qs = {}
 
@@ -510,7 +534,7 @@ def gamma_function(lambdas: numpy.ndarray, g: numpy.ndarray, gexp: numpy.ndarray
         Numpy 2-dimensional array (M x N); `g[i,j]` is the j-th observable computed in the i-th frame.
     
     gexp : array_like
-        Numpy 2-dimensional array (N x 2); `g[j,0]` is the experimental value of the i-th observable, `g[j,1]` is the associated experimental uncertainty.
+        Numpy 2-dimensional array (N x 2); `gexp[j,0]` is the experimental value of the j-th observable, `gexp[j,1]` is the associated experimental uncertainty.
     
     weights : array_like
         Numpy 1-dimensional array of length M; `w[i]` is the weight of the i-th frame (possibly non-normalized).
@@ -780,7 +804,7 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         Dicionary of chi2 (one for each thermodynamic cycle).
     
     loss : float
-        Total contribution to the loss function from free-energy differences $\Delta\DeltaG$.
+        Total contribution to the loss function from free-energy differences Delta Delta G.
     ----------------
     """
     cycle_names = data['global'].cycle_names
