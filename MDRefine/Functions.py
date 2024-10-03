@@ -163,11 +163,13 @@ class data_global_class:
     def __init__(self, info_global, path_directory):
 
         self.system_names = info_global['system_names']
+        """List of names of the investigated molecular systems."""
 
         if 'forward_coeffs' in info_global.keys():
             temp = pandas.read_csv(path_directory + info_global['forward_coeffs'], header=None)
             temp.index = temp.iloc[:, 0]
             self.forward_coeffs_0 = temp.iloc[:, 1]
+            """List of the forward-model coefficients."""
             # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
             # if temp.shape[0] == 1:
             #     self.forward_coeffs_0 = temp.iloc[:, 0]
@@ -176,11 +178,14 @@ class data_global_class:
 
         if 'names_ff_pars' in info_global.keys():
             self.names_ff_pars = info_global['names_ff_pars']
+            """List of names of the force-field correction parameters."""
 
         if 'cycle_names' in info_global.keys():
             self.cycle_names = info_global['cycle_names']
+            """List of names of the investigated thermodynamic cycles."""
 
     def tot_n_experiments(self, data):
+        """This method computes the total n. of experiments."""
         
         tot = 0
 
@@ -221,13 +226,13 @@ class data_class:
 
     Input variables:
     ----------------
-    info : dict
+    info: dict
         Dictionary for the information about the data of `name_sys` molecular system in `path_directory`. 
 
-    path_directory : str
+    path_directory: str
         String for the path of the directory with data of the molecular system `name_sys`.
 
-    name_sys : str
+    name_sys: str
         String for the name of the molecular system.
     """
     def __init__(self, info, path_directory, name_sys):
@@ -364,6 +369,7 @@ class data_class:
                 print('error: missing MD data for %s!' % name_sys)
 
         self.weights = self.weights/np.sum(self.weights)
+        """normalized weights"""
 
         # 5. f (force field correction terms) and function
 
@@ -382,12 +388,14 @@ class data_cycle_class:
     def __init__(self, cycle_name, DDGs_exp, info):
 
         self.gexp_DDG = [DDGs_exp.loc[:, cycle_name].iloc[0], DDGs_exp.loc[:, cycle_name].iloc[1]]
+        """List of experimental values of the Delta Delta G, with associated uncertainties."""
 
         if 'temperature' in info.keys():
             self.temperature = info['temperature']
+            """Temperature."""
         else:
             self.temperature = 1.0
-
+            """Temperature"""
 
 def load_data(infos, *, stride=1):
     """
@@ -1342,10 +1350,14 @@ def deconvolve_lambdas(data, lambdas: numpy.ndarray, if_denormalize: bool = True
 class intermediates_class:
     def __init__(self, alpha):
         self.loss = []
+        """loss"""
         self.pars = []
+        """pars"""
         if not np.isinf(alpha):
             self.lambdas = []
+            """lambdas"""
             self.minis = []
+            """minis"""
 
 
 def minimizer(
@@ -2914,45 +2926,45 @@ def MDRefinement(
     by using the opimized hyperparameters. The output variables are then saved in a folder; they include `input` values, `min_lambdas` (optimal lambda coefficients for Ensemble Refinement, when performed),
     `result`, `hyper_search` (steps in the search for optimal hyperparameters) (`.csv` files) and the `.npy` arrays with the new weights determined in the refinement.
 
-    Required inputs:
+    Input variables:
     ----------------
     
-    infos : dict
-        A dictionary of information used to load data with `load_data` (see Examples).
+    infos: dict
+        A dictionary of information used to load data with `load_data` (see in the Examples directory).
     
-    regularization : dict
+    regularization: dict
         A dictionary which can include two keys: `force_field_reg` and `forward_model_reg`, to specify the regularizations to the force-field correction and the forward model, respectively;
         the first key is either a string (among `plain l2`, `constraint 1`, `constraint 2`, `KL divergence`) or a user-defined
         function which takes as input `pars_ff` and returns the regularization term to be multiplied by the hyperparameter `beta`;
         the second key is a user-defined function which takes as input `pars_fm` and `forward_coeffs_0` (current and refined forward-model coefficients) and
         returns the regularization term to be multiplied by the hyperparameter `gamma`.
     
-    stride : int
+    stride: int
         The stride of the frames used to load data employed in search for optimal hyperparameters
         (in order to reduce the computational cost, at the price of a lower representativeness of the ensembles).
     
-    starting_alpha, starting_beta, starting_gamma : floats
+    starting_alpha, starting_beta, starting_gamma: floats
         Starting values of the hyperparameters (`np.inf` by default, namely no refinement in that direction).
     
-    random_states : int or list of integers
+    random_states: int or list of integers
         Random states (i.e., seeds) used to split the data set in cross validation (if integer, then `random_states = np.arange(random_states)`.
     
-    which_set : str
+    which_set: str
         String chosen among `'training'`, `'validation'` or `'test'`, which specifies how to determine optimal hyperparameters:
         if minimizing the (average) chi2 on the training set for `'training'`, on training observables and test frames for `'validation'`,
         on test observables for `'test'`.
     
-    gtol : float
+    gtol: float
         Tolerance `gtol` (on the gradient) of scipy.optimize.minimize (0.5 by default).
 
-    ftol : float
+    ftol: float
         Tolerance `ftol` of scipy.optimize.minimize (0.05 by default).
 
-    results_folder_name : str
+    results_folder_name: str
         String for the prefix of the folder where to save results; the complete folder name is `results_folder_name + '_' + time` where `time` is the current time
         when the algorithm has finished, in order to uniquely identify the folder with the results.
     
-    n_parallel_jobs : int
+    n_parallel_jobs: int
         How many jobs are run in parallel (`None` by default).
     """
     data = load_data(infos, stride=stride)
