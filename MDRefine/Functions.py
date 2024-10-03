@@ -160,6 +160,16 @@ def check_and_skip(data, *, stride=1):
 # %% A2. load_data
 
 class data_global_class:
+    """Global data, common to all the investigated molecular systems.
+    
+    Input variables:
+    ----------------
+
+    info_global: dict
+        Dictionary with global information: list of names of the molecular systems `info_global['system_names']`
+
+    path_directory: str
+    """
     def __init__(self, info_global, path_directory):
 
         self.system_names = info_global['system_names']
@@ -645,7 +655,7 @@ def normalize_observables(gexp, g, weights=None):
 def compute_D_KL(weights_P: numpy.ndarray, correction_ff: numpy.ndarray, temperature: float, logZ_P: float):
     """
     This tool computes the Kullback-Leibler divergence of P(x) = 1/Z P_0 (x) e^(-V(x)/T)
-    with respect to P_0 as \langle V \rangle _P / T + log Z.
+    with respect to P_0 as `av(V)/T + log Z` where av(V) is the average value of the potential V(x) over P(x).
     
     Input variables:
     --------------
