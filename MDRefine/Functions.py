@@ -165,24 +165,31 @@ class data_global_class:
         self.system_names = info_global['system_names']
         """List of names of the investigated molecular systems."""
 
-        if 'forward_coeffs' in info_global.keys():
+        try:
             temp = pandas.read_csv(path_directory + info_global['forward_coeffs'], header=None)
             temp.index = temp.iloc[:, 0]
             self.forward_coeffs_0 = temp.iloc[:, 1]
             """List of the forward-model coefficients."""
+        except:
+            assert 'forward_coeffs' not in info_global.keys(), 'Error: missing forward coefficients'
+
             # temp = pandas.read_csv(path_directory+'%s' % info_global['forward_coeffs'], index_col=0)
             # if temp.shape[0] == 1:
             #     self.forward_coeffs_0 = temp.iloc[:, 0]
             # else:
             #     self.forward_coeffs_0 = temp.squeeze()
 
-        if 'names_ff_pars' in info_global.keys():
+        try:
             self.names_ff_pars = info_global['names_ff_pars']
             """List of names of the force-field correction parameters."""
+        except:
+            assert 'names_ff_pars' not in info_global.keys(), 'Error: missing names of force-field correction parameters'
 
-        if 'cycle_names' in info_global.keys():
+        try:
             self.cycle_names = info_global['cycle_names']
             """List of names of the investigated thermodynamic cycles."""
+        except:
+            assert 'cycle_names' not in info_global.keys(), 'Error: missing names of thermodynamic cycles'
 
     def tot_n_experiments(self, data):
         """This method computes the total n. of experiments."""
@@ -638,7 +645,7 @@ def normalize_observables(gexp, g, weights=None):
 def compute_D_KL(weights_P: numpy.ndarray, correction_ff: numpy.ndarray, temperature: float, logZ_P: float):
     """
     This tool computes the Kullback-Leibler divergence of P(x) = 1/Z P_0 (x) e^(-V(x)/T)
-    with respect to P_0 as <V>_P / T + log Z.
+    with respect to P_0 as \langle V \rangle _P / T + log Z.
     
     Input variables:
     --------------
@@ -720,8 +727,10 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
         `name_type + ' UPPER'`), needed for minimizations with double bounds.
     --------------
 
-    This tool returns 4 variables: 3 dictionaries (with keys running over different kinds of observables) and 1 float:
+    Output variables:
     --------------
+    This tool returns 4 variables: 3 dictionaries (with keys running over different kinds of observables) and 1 float:
+
     av_g : dict
         Dictionary of average values of the observables `g`.
 
@@ -795,8 +804,8 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
 
 def compute_DeltaDeltaG_terms(data, logZ_P):
     """
-    This tool computes contribution from alchemical data about Delta Delta G
-    to the loss function.
+    This tool computes the chi2 for Delta Delta G (free-energy differences from thermodynamic cycles),
+    contributing to the loss function with alchemical calculations.
 
     Input variables: 
     ----------------
@@ -814,10 +823,11 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         Dictionary of reweighted averages of Delta G.
 
     chi2 : dict
-        Dicionary of chi2 (one for each thermodynamic cycle).
+        Dictionary of chi2 (one for each thermodynamic cycle).
     
     loss : float
-        Total contribution to the loss function from free-energy differences Delta Delta G.
+        Total contribution to the loss function from free-energy differences Delta Delta G,
+        given by 1/2 of the total chi2.
     """
     cycle_names = data['global'].cycle_names
 
@@ -852,9 +862,9 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
 
 def compute_details_ER(weights_P, g, data, lambdas, alpha):
     """
-    This tool computes explicitely the contribution to the loss function due to Ensemble Refinement
+    This is an internal tool of `loss_function` which computes explicitely the contribution to the loss function due to Ensemble Refinement
     (namely, 1/2 chi2 + alpha D_KL) and compare this value with -alpha*Gamma (they are equal in the minimum: check).
-    It cycles over different systems. It acts in the end of the minimization of `loss_function` (not for the minimization
+    It cycles over different systems. It acts after the minimization of the loss function inside `loss_function` (not for the minimization
     itself, since we exploit the Gamma function).
 
     Be careful to use either: normalized values for `lambdas` and `g` (if `hasattr(data,'normg_mean')`) or non-normalized ones
@@ -877,8 +887,6 @@ def compute_details_ER(weights_P, g, data, lambdas, alpha):
     
     alpha : float
         The alpha hyperparameter, for Ensemble Refinement.
-    ------------
-    Output: instance of Details_class.
     """
     if hasattr(data, 'normg_mean'):
         print('WARNING: you are using normalized observables!')
@@ -1349,15 +1357,13 @@ def deconvolve_lambdas(data, lambdas: numpy.ndarray, if_denormalize: bool = True
 
 class intermediates_class:
     def __init__(self, alpha):
+        
         self.loss = []
-        """loss"""
         self.pars = []
-        """pars"""
+
         if not np.isinf(alpha):
             self.lambdas = []
-            """lambdas"""
             self.minis = []
-            """minis"""
 
 
 def minimizer(
@@ -2149,8 +2155,10 @@ def compute_hyperderivatives(
         pars_ff_fm, lambdas, data, regularization, derivatives_funs,
         log10_alpha=+np.inf, log10_beta=+np.inf, log10_gamma=+np.inf):
     """
-    This tool computes the derivatives of parameters with respect to hyperparameters,
+    This is an internal tool of `compute_hypergradient` which computes the derivatives of parameters with respect to hyperparameters,
     which are going to be used later to compute the derivatives of chi2 w.r.t. hyperparameters.
+    It returns an instance of the class `derivatives`, which includes as attributes the numerical values of 
+    the derivatives `dlambdas_dlogalpha`, `dlambdas_dpars`, `dpars_dlogalpha`, `dpars_dlogbeta`, `dpars_dloggamma`.
 
     Input values:
     --------------
@@ -2172,10 +2180,6 @@ def compute_hyperderivatives(
     
     log10_alpha, log10_beta, log10_gamma: floats
         Logarithms (in base 10) of the corresponding hyperparameters alpha, beta, gamma (`np.inf` by default).
-
-    --------------
-    It returns an instance of the class `derivatives`, which includes as attributes the numerical values of 
-    the derivatives `dlambdas_dlogalpha`, `dlambdas_dpars`, `dpars_dlogalpha`, `dpars_dlogbeta`, `dpars_dloggamma`.
     """
     system_names = data['global'].system_names
 
@@ -2376,7 +2380,9 @@ def compute_hyperderivatives(
 
 def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gamma, which_set):
     """
-    This tool returns the total chi2 (float variable) for training or test data set, according to `which_set`
+    This function is an internal tool used in `compute_hypergradient` and `hyper_minimizer`
+    to compute the total chi2 (float variable) for the training or test data set and its derivatives
+    (with respect to `pars_ff_fm` and `lambdas`). The choice of the data set is indicated by `which_set`
     (`which_set = 'training'` for chi2 on the training set, `'validation'` for chi2 on training observables and test frames,
     `'test'` for chi2 on test observables and test frames, through validation function).
 
@@ -2418,8 +2424,8 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
 # %% D3. put_together
 
 def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
-    """"
-    This tool applies chain rule to get derivatives of chi2 w.r.t hyperparameters from
+    """
+    This is an internal tool of `compute_hypergradient` which applies the chain rule in order to get the derivatives of chi2 w.r.t hyperparameters from
     derivatives of chi2 w.r.t. parameters and derivatives of parameters w.r.t. hyperparameters.
 
     Input variables:
@@ -2475,7 +2481,7 @@ def compute_hypergradient(
         pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
         which_set, data_test, derivatives_funs):
     """
-    This tool employs previously defined functions (`compute_hyperderivatives`, `compute_chi2_tot`,
+    This is an internal tool of `mini_and_chi2_and_grad`, which employs previously defined functions (`compute_hyperderivatives`, `compute_chi2_tot`,
     `put_together`) to return selected chi2 and its gradient w.r.t hyperparameters.
 
     Input values:
@@ -2585,7 +2591,7 @@ def mini_and_chi2_and_grad(
         data, test_frames, test_obs, regularization, alpha, beta, gamma,
         starting_pars, which_set, derivatives_funs):
     """
-    This tool minimizes the loss function at given hyperparameters, computes the chi2 and
+    This is an internal tool of `hyper_function` which minimizes the loss function at given hyperparameters, computes the chi2 and
     its gradient w.r.t. the hyperparameters.
 
     Input variables:
@@ -2640,7 +2646,7 @@ def hyper_function(
         log10_hyperpars, map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs,
         starting_pars, n_parallel_jobs):
     """
-    Function **hyper_function** determines optimal parameters by minimizing loss function at given hyperparameters;
+    This function is an internal tool of `hyper_minimizer` which determines the optimal parameters by minimizing the loss function at given hyperparameters;
     then, it computes chi2 and its gradient w.r.t hyperparameters (for the optimal parameters).
 
     Input variables:
@@ -3060,7 +3066,7 @@ def unwrap_2dict(my_2dict):
 
 def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     """
-    Tool used to save `input_values` and output `Result` as `csv` and `npy` files in a folder whose name is
+    This is an internal tool of `MDRefinement` used to save `input_values` and output `Result` as `csv` and `npy` files in a folder whose name is
     `folder_name + '_' + date` where date is the current time when the computation ended (it uses `date_time`
     to generate unique file name, on the assumption of a single folder name at given time).
 
