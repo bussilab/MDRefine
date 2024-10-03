@@ -192,8 +192,8 @@ class data_global_class:
 
 class data_class:
     """
-    Define an instance for each molecular system, which contains the following attributes:
-    ---------------
+    Data object of a molecular system.
+    -----------
     temperature : float
         Value for the temperature at which the trajectory is simulated.
     
@@ -236,6 +236,7 @@ class data_class:
 
         if 'temperature' in info.keys():
             self.temperature = info['temperature']
+            """`float` value for the temperature"""
         else:
             self.temperature = 1.0
 
@@ -244,8 +245,11 @@ class data_class:
         if 'g_exp' in info.keys():
 
             self.gexp = {}
+            """dictionary of `numpy.ndarray` containing gexp values and uncertainties"""
             self.names = {}
+            """dictionary of `numpy.ndarray` containing names of experimental observables"""
             self.ref = {}  # if data.gexp are boundary or puntual values
+            """dictionary of `numpy.ndarray` containing references"""
 
             if info['g_exp'] is None:
                 if info['DDGs']['if_DDGs'] is False:
@@ -544,7 +548,6 @@ def gamma_function(lambdas: numpy.ndarray, g: numpy.ndarray, gexp: numpy.ndarray
     
     if_gradient : bool
         If true, return also the gradient of the gamma function.
-    ----------
     """
     correction_lambdas = np.matmul(g, lambdas)
     newweights, logZlambda = compute_new_weights(weights, correction_lambdas)
@@ -566,6 +569,7 @@ def normalize_observables(gexp, g, weights=None):
     This tool normalizes `g` and `gexp`. Since experimental observables have different units, it is better to normalize them, in order that
     varying any lambda coefficient by the same value epsilon would result in comparable effects to the ensemble.
     This results to be useful in the minimization of `gamma_function`.
+
     Input values: 
     ----------------
     gexp, g : dicts
@@ -785,8 +789,9 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
     """
     This tool computes contribution from alchemical data about Delta Delta G
     to the loss function.
+
     Input variables: 
-    ------------------
+    ----------------
     data : dict
         Object `data`; here, `data['global']` has the attribute `cycle_names` (list of names of the thermodynamic cycles);
         `for s in data['global'].cycle_names`: `data[s]` has attributes `temperature` (of the cycle) and `gexp_DDG`;
@@ -794,9 +799,9 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         
     logZ_P : dict
         Dictionary for logarithm of the partition function $Z_P$, namely, average value of $e^{-V_\phi(x)/temperature}$ over the original ensemble.
-    ------------------
+    ---------------
     Output variables:
-    ------------------
+    ---------------
     new_av_DG : dict
         Dictionary of reweighted averages of Delta G.
 
@@ -805,7 +810,6 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
     
     loss : float
         Total contribution to the loss function from free-energy differences Delta Delta G.
-    ----------------
     """
     cycle_names = data['global'].cycle_names
 
@@ -1758,13 +1762,11 @@ def select_traintest(
     Output variables:
     ----------
     data_train, data_test : dicts
-        
         Dictionaries for training and test data; `data_test` includes:
         trained observables and non-trained (test) frames (where it is not specified `new`);
         non-trained (test) observables and non-trained/all (accordingly to `if_all_frames`) frames (where specified `new`).
     
     test_obs, test_frames : dicts
-        
         Dictionaries for the observables and frames selected for the test set.
     """
     # PART 1: IF NONE, SELECT TEST OBSERVABLES AND TEST FRAMES
@@ -2658,7 +2660,7 @@ def hyper_function(
         Number of parallel jobs.
 
     ------------
-    It returns:
+    Output variables:
     ------------
     
     tot_chi2: float
@@ -2910,7 +2912,7 @@ def MDRefinement(
     """
     This is the main tool of the package: it loads data, searches for the optimal hyperparameters and minimizes the loss function on the whole data set
     by using the opimized hyperparameters. The output variables are then saved in a folder; they include `input` values, `min_lambdas` (optimal lambda coefficients for Ensemble Refinement, when performed),
-    `result`, `hyper_search` (steps in the search for optimal hyperparameters) (`csv` files) and the `npy` arrays with the new weights determined in the refinement.
+    `result`, `hyper_search` (steps in the search for optimal hyperparameters) (`.csv` files) and the `.npy` arrays with the new weights determined in the refinement.
 
     Required inputs:
     ----------------
@@ -2952,7 +2954,6 @@ def MDRefinement(
     
     n_parallel_jobs : int
         How many jobs are run in parallel (`None` by default).
-    ----------------
     """
     data = load_data(infos, stride=stride)
 
@@ -3021,7 +3022,7 @@ def MDRefinement(
 
 def unwrap_2dict(my_2dict):
     """
-    Tool to unwrap a 2-layer dictionary `my_2dict` into values and keys.
+    Tool to unwrap a 2-layer dictionary `my_2dict` into list of values and list of keys.
     """
 
     res = []
