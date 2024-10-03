@@ -191,6 +191,21 @@ class data_global_class:
 
 
 class data_class:
+    """
+    temperature, gexp (experimental values) and names of the observables, ref, g (observables), forward_qs (quantities for the forward model) and forward_model
+    weights (normalized), f (force field correction terms) and function ff_correction
+
+    Input variables:
+    ----------------
+    info : dict
+        Dictionary for the information about the data of `name_sys` molecular system in `path_directory`. 
+
+    path_directory : str
+        String for the path of the directory with data of the molecular system `name_sys`.
+
+    name_sys : str
+        String for the name of the molecular system.
+    """
     def __init__(self, info, path_directory, name_sys):
 
         # 0. temperature
@@ -586,8 +601,8 @@ def normalize_observables(gexp, g, weights=None):
 
 def compute_D_KL(weights_P: numpy.ndarray, correction_ff: numpy.ndarray, temperature: float, logZ_P: float):
     """
-    This tool computes the Kullback-Leibler divergence of $P(x) = 1/Z P_0 (x) e^(-V(x)/T)$
-    with respect to $P_0 (x)$ as $ < V >_P / T + \log Z$.
+    This tool computes the Kullback-Leibler divergence of P(x) = 1/Z P_0 (x) e^(-V(x)/T)
+    with respect to P_0 as <V>_P / T + log Z.
     
     Input variables:
     --------------
@@ -1532,6 +1547,9 @@ def minimizer(
 # %% C11. select_traintest
 
 class class_test:
+    """
+    Class for test data set, with similar structure as `data_class`.
+    """
     def __init__(self, data_sys, test_frames_sys, test_obs_sys, if_all_frames, data_train_sys):
 
         # A. split weights
@@ -1617,6 +1635,9 @@ class class_test:
 
 
 class class_train:
+    """
+    Class for training data set, with similar structure as `data_class`.
+    """
     def __init__(self, data_sys, test_frames_sys, test_obs_sys):
 
         # training observables
