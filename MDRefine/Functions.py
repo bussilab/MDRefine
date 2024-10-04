@@ -1,6 +1,6 @@
 """
 Tools to perform reweighting using several refinements.
-It also includes optimization of the hyperparameters through minimization of the chi2 on test test set.
+It also includes optimization of the hyperparameters through minimization of the chi2 on the test set.
 """
 
 import os
