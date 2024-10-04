@@ -1,0 +1,2 @@
+,stride,starting_alpha,starting_beta,starting_gamma,random_states,which_set,gtol,ftol
+2024_10_04_08_24_52_792385,10,1,inf,1,"[1, 2, 3, 4, 5]",test,0.5,1e-05
