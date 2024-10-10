@@ -164,7 +164,7 @@ def check_and_skip(data, *, stride=1):
 class data_global_class:
     """Global data, common to all the investigated molecular systems.
     
-    Parameters:
+    Parameters
     -----------
 
     info_global: dict
@@ -228,7 +228,7 @@ class data_class:
     """
     Data object of a molecular system.
 
-    Parameters:
+    Parameters
     ----------------
     info: dict
         Dictionary for the information about the data of `name_sys` molecular system in `path_directory`. 
@@ -428,7 +428,7 @@ class data_cycle_class:
     """
     Data object of a thermodynamic cycle.
     
-    Parameters:
+    Parameters
     -------------------
     cycle_name : str
         String with the name of the thermodynamic cycle taken into account.
@@ -598,7 +598,7 @@ def gamma_function(lambdas: numpy.ndarray, g: numpy.ndarray, gexp: numpy.ndarray
     This tool computes gamma function and (if `if_gradient`) its derivatives and the average values of the observables `av_g`.
     Make sure that `lambdas` follow the same order as `g`, `gexp` (let's use that of `data.n_experiments`).
 
-    Parameters:
+    Parameters
     -----------
     
     lambdas : array_like
@@ -640,7 +640,7 @@ def normalize_observables(gexp, g, weights=None):
     varying any lambda coefficient by the same value epsilon would result in comparable effects to the ensemble.
     This results to be useful in the minimization of `gamma_function`.
 
-    Parameters: 
+    Parameters 
     ----------------
     gexp, g : dicts
         Dictionaries corresponding to `data[name_sys].gexp` and `data[name_sys].g`.
@@ -702,7 +702,7 @@ def compute_D_KL(weights_P: numpy.ndarray, correction_ff: numpy.ndarray, tempera
     This tool computes the Kullback-Leibler divergence of P(x) = 1/Z P_0 (x) e^(-V(x)/T)
     with respect to P_0 as `av(V)/T + log Z` where av(V) is the average value of the potential V(x) over P(x).
     
-    Parameters:
+    Parameters
     --------------
     weights_P : array_like
         Numpy 1-dimensional array for the normalized weights P(x).
@@ -763,7 +763,7 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
     """
     This tool computes the chi2 (for a given molecular system).
     
-    Parameters:
+    Parameters
     -----------
     ref : dict
         Dictionary for references (`=`, `>`, `<`, `><`) used to compute the appropriate chi2.
@@ -862,7 +862,7 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
     This tool computes the chi2 for Delta Delta G (free-energy differences from thermodynamic cycles),
     contributing to the loss function with alchemical calculations.
 
-    Parameters: 
+    Parameters 
     ----------------
     data : dict
         Object `data`; here, `data['global']` has the attribute `cycle_names` (list of names of the thermodynamic cycles);
