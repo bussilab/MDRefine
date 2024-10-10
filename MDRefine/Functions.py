@@ -2987,8 +2987,8 @@ def MDRefinement(
     by using the opimized hyperparameters. The output variables are then saved in a folder; they include `input` values, `min_lambdas` (optimal lambda coefficients for Ensemble Refinement, when performed),
     `result`, `hyper_search` (steps in the search for optimal hyperparameters) (`.csv` files) and the `.npy` arrays with the new weights determined in the refinement.
 
-    Input variables:
-    ----------------
+    Parameters
+    ----------
     
     infos: dict
         A dictionary of information used to load data with `load_data` (see in the Examples directory).
