@@ -164,15 +164,15 @@ def check_and_skip(data, *, stride=1):
 class data_global_class:
     """Global data, common to all the investigated molecular systems.
     
-    Input variables:
-    ----------------
+    Parameters:
+    -----------
 
     info_global: dict
         Dictionary with global information:
-        - `info_global['system_names']` with list of names of the molecular systems;
-        - `info_global['cycle_names']` with list of names of the thermodynamic cycles;
-        - `info_global['forward_coeffs']` with string for the file name of forward coefficients;
-        - `info_global['names_ff_pars']` with list of names of the force-field correction coefficients.
+        `info_global['system_names']` with list of names of the molecular systems;
+        `info_global['cycle_names']` with list of names of the thermodynamic cycles;
+        `info_global['forward_coeffs']` with string for the file name of forward coefficients;
+        `info_global['names_ff_pars']` with list of names of the force-field correction coefficients.
 
     path_directory: str
         String with the path of the directory with input files.
@@ -228,7 +228,7 @@ class data_class:
     """
     Data object of a molecular system.
 
-    Input variables:
+    Parameters:
     ----------------
     info: dict
         Dictionary for the information about the data of `name_sys` molecular system in `path_directory`. 
@@ -428,7 +428,7 @@ class data_cycle_class:
     """
     Data object of a thermodynamic cycle.
     
-    Input variables:
+    Parameters:
     -------------------
     cycle_name : str
         String with the name of the thermodynamic cycle taken into account.
@@ -572,7 +572,7 @@ def compute_js(n_experiments):
 def compute_new_weights(weights: numpy.ndarray, correction: numpy.ndarray):
     """
     This tool computes the new weights as weights*exp(-correction).
-    It modifies input variables: `weights` are normalized and `correction` is shifted by `correction -= shift`, where `shift = np.min(correction)`.
+    It modifies Parameters `weights` are normalized and `correction` is shifted by `correction -= shift`, where `shift = np.min(correction)`.
     It returns two variables: a Numpy array `new_weights` and a float `logZ`.
     """
 
@@ -598,7 +598,7 @@ def gamma_function(lambdas: numpy.ndarray, g: numpy.ndarray, gexp: numpy.ndarray
     This tool computes gamma function and (if `if_gradient`) its derivatives and the average values of the observables `av_g`.
     Make sure that `lambdas` follow the same order as `g`, `gexp` (let's use that of `data.n_experiments`).
 
-    Input variables:
+    Parameters:
     -----------
     
     lambdas : array_like
@@ -640,7 +640,7 @@ def normalize_observables(gexp, g, weights=None):
     varying any lambda coefficient by the same value epsilon would result in comparable effects to the ensemble.
     This results to be useful in the minimization of `gamma_function`.
 
-    Input values: 
+    Parameters: 
     ----------------
     gexp, g : dicts
         Dictionaries corresponding to `data[name_sys].gexp` and `data[name_sys].g`.
@@ -649,8 +649,8 @@ def normalize_observables(gexp, g, weights=None):
         Numpy 1-dimensional array, by default `None` (namely, equal weight for each frame).
     ----------------
 
-    Output values:
-    ----------------
+    Output parameters:
+    ------------------
     norm_g, norm_gexp : dict
         Dictionaries for normalized g and gexp.
     
@@ -702,7 +702,7 @@ def compute_D_KL(weights_P: numpy.ndarray, correction_ff: numpy.ndarray, tempera
     This tool computes the Kullback-Leibler divergence of P(x) = 1/Z P_0 (x) e^(-V(x)/T)
     with respect to P_0 as `av(V)/T + log Z` where av(V) is the average value of the potential V(x) over P(x).
     
-    Input variables:
+    Parameters:
     --------------
     weights_P : array_like
         Numpy 1-dimensional array for the normalized weights P(x).
@@ -763,8 +763,8 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
     """
     This tool computes the chi2 (for a given molecular system).
     
-    Input values:
-    --------------
+    Parameters:
+    -----------
     ref : dict
         Dictionary for references (`=`, `>`, `<`, `><`) used to compute the appropriate chi2.
     
@@ -862,7 +862,7 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
     This tool computes the chi2 for Delta Delta G (free-energy differences from thermodynamic cycles),
     contributing to the loss function with alchemical calculations.
 
-    Input variables: 
+    Parameters: 
     ----------------
     data : dict
         Object `data`; here, `data['global']` has the attribute `cycle_names` (list of names of the thermodynamic cycles);
@@ -925,8 +925,8 @@ def compute_details_ER(weights_P, g, data, lambdas, alpha):
     Be careful to use either: normalized values for `lambdas` and `g` (if `hasattr(data,'normg_mean')`) or non-normalized ones
     (if `not hasattr(data,'normg_mean')`).
     
-    Input variables:
-    ------------
+    Parameters
+    ----------
     weights_P : dict
         Dictionary of Numpy arrays, namely, the weights on which Ensemble Refinement acts (those with force-field correction
         in the fully combined refinement).
@@ -1013,7 +1013,7 @@ def loss_function(
     The input data will not be modified by `loss_function` (neither explicitely by `loss_function` nor by its inner functions):
     for forward-model updating, you are going to define a new variable `g` (through `copy.deepcopy`).
 
-    Input variables:
+    Parameters
     -----------------
     pars_ff_fm: array_like
         Numpy 1-dimensional array with parameters for force-field corrections and/or forward models.
@@ -1806,7 +1806,7 @@ def select_traintest(
     """
     This tool splits the data set into training and test set. You can either randomly select the frames and/or the observables (accordingly to `test_frames_size`, `test_obs_size`, `random_state`) or pass the dictionaries `test_obs` and/or `test_frames`.
 
-    Input variables:
+    Parameters
     ---------------
     data : dict
         Dictionary for the `data` object.
@@ -2483,7 +2483,7 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
     This is an internal tool of `compute_hypergradient` which applies the chain rule in order to get the derivatives of chi2 w.r.t hyperparameters from
     derivatives of chi2 w.r.t. parameters and derivatives of parameters w.r.t. hyperparameters.
 
-    Input variables:
+    Parameters
     ---------------
     dchi2_dpars: array-like
         Numpy 1-dimensional array with derivatives of chi2 w.r.t. `pars_ff_fm` (force-field and forward-model parameters).
@@ -2649,7 +2649,7 @@ def mini_and_chi2_and_grad(
     This is an internal tool of `hyper_function` which minimizes the loss function at given hyperparameters, computes the chi2 and
     its gradient w.r.t. the hyperparameters.
 
-    Input variables:
+    Parameters
     -------------------
     data : dict
         Dictionary which constitutes the `data` object.
@@ -2704,7 +2704,7 @@ def hyper_function(
     This function is an internal tool of `hyper_minimizer` which determines the optimal parameters by minimizing the loss function at given hyperparameters;
     then, it computes chi2 and its gradient w.r.t hyperparameters (for the optimal parameters).
 
-    Input variables:
+    Parameters
     --------------
     
     log10_hyperpars: array_like
@@ -3125,7 +3125,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     `folder_name + '_' + date` where date is the current time when the computation ended (it uses `date_time`
     to generate unique file name, on the assumption of a single folder name at given time).
 
-    Input variables:
+    Parameters
     -----------------
     input_values : dict
         Dictionary with input values of the refinement, such as stride, starting values of the hyperparameters, random_states, which_set, tolerances (see `MDRefinement`).
