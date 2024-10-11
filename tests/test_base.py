@@ -6,7 +6,7 @@ class Test(unittest.TestCase):
         # just test import
         import MDRefine
         self.assertIsNone(None)
-        from MDRefine import Functions
+        from MDRefine import data_loading, loss_and_minimizer, hyperminimizer, MDRefinement
     def test2(self):
         self.assertEqual(3,3)
     def test3(self):
