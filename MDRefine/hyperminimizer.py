@@ -556,7 +556,10 @@ def hyper_function(
         Number of parallel jobs.
 
     --------
-    Returns:
+
+    Output
+
+    Parameters
     --------
     
     tot_chi2: float

@@ -125,7 +125,9 @@ def normalize_observables(gexp, g, weights=None):
         Numpy 1-dimensional array, by default `None` (namely, equal weight for each frame).
     --------
 
-    Returns:
+    Output
+
+    Parameters:
     --------
     norm_g, norm_gexp : dict
         Dictionaries for normalized g and gexp.
@@ -258,7 +260,9 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
         `name_type + ' UPPER'`), needed for minimizations with double bounds.
     --------
 
-    Returns:
+    Output
+
+    Parameters:
     --------
     This tool returns 4 variables: 3 dictionaries (with keys running over different kinds of observables) and 1 float:
 
@@ -350,7 +354,10 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
     logZ_P : dict
         Dictionary for logarithm of the partition function Z_P, namely, average value of e^{-V_\phi(x)/temperature} over the original ensemble.
     --------
-    Returns:
+
+    Output
+
+    Parameters:
     --------
     new_av_DG : dict
         Dictionary of reweighted averages of Delta G.
@@ -1312,7 +1319,10 @@ def select_traintest(
         with shape `(n_frames, n_replicas)` containing numbers from 0 to `n_replicas - 1` which indicate corresponding
         temperatures (for each replica index in `axis=1`).
     --------
-    Returns:
+
+    Output
+
+    Parameters:
     --------
     data_train, data_test : class instances
         Class instances for training and test data; `data_test` includes:

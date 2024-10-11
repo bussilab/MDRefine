@@ -173,7 +173,7 @@ class data_global_class:
         String with the path of the directory with input files.
 
     --------
-    Returns:
+    Returns
     --------
     system_names : list
         List of names of the investigated molecular systems.
@@ -235,7 +235,10 @@ class data_class:
         Name of the molecular system taken into account.
     
     --------
-    Returns:
+
+    Output
+
+    Parameters
     --------
     temperature : float
         Value for the temperature at which the trajectory is simulated.
@@ -435,7 +438,7 @@ class data_cycle_class:
         Dictionary for the information about the temperature of `cycle_name` thermodynamic cycle. 
 
     --------
-    Returns:
+    Returns
     --------
     gexp_DDG : list
         List of two elements: the experimental value and uncertainty of the Delta Delta G.
