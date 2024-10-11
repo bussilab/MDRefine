@@ -236,9 +236,7 @@ class data_class:
     
     --------
 
-    Output
-
-    Parameters
+    Returns
     --------
     temperature : float
         Value for the temperature at which the trajectory is simulated.

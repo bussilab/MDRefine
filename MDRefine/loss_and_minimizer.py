@@ -1,7 +1,7 @@
 """
 Tools n. 2: loss_and_minimizer.
-It includes the definition of the loss functions and its minimization.
-It includes also the splitting into training and test set `select_traintest` and the tool `validation`.
+It defines the loss functions and minimizes it.
+It includes also `select_traintest` and `validation`.
 """
 
 import copy
@@ -125,9 +125,7 @@ def normalize_observables(gexp, g, weights=None):
         Numpy 1-dimensional array, by default `None` (namely, equal weight for each frame).
     --------
 
-    Output
-
-    Parameters:
+    Returns
     --------
     norm_g, norm_gexp : dict
         Dictionaries for normalized g and gexp.
@@ -260,9 +258,7 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
         `name_type + ' UPPER'`), needed for minimizations with double bounds.
     --------
 
-    Output
-
-    Parameters:
+    Returns
     --------
     This tool returns 4 variables: 3 dictionaries (with keys running over different kinds of observables) and 1 float:
 
@@ -352,12 +348,10 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         `data.sys[s]` has attributes `temperature` (of the system) and `logZ`.
         
     logZ_P : dict
-        Dictionary for logarithm of the partition function Z_P, namely, average value of e^{-V_\phi(x)/temperature} over the original ensemble.
+        Dictionary for logarithm of the partition function Z_P, namely, average value of exp(-V_phi(x)/temperature) over the original ensemble.
     --------
 
-    Output
-
-    Parameters:
+    Returns
     --------
     new_av_DG : dict
         Dictionary of reweighted averages of Delta G.
@@ -1320,9 +1314,7 @@ def select_traintest(
         temperatures (for each replica index in `axis=1`).
     --------
 
-    Output
-
-    Parameters:
+    Returns
     --------
     data_train, data_test : class instances
         Class instances for training and test data; `data_test` includes:

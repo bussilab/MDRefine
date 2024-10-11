@@ -1,6 +1,6 @@
 """
 Tools n. 3: hyperminimizer.
-It includes the automatic search for the optimal hyperparameters.
+It performs the automatic search for the optimal hyperparameters.
 """
 
 import copy
@@ -314,8 +314,11 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
     derivatives: class instance
         Class instance with derivatives of `pars_ff_fm` and `lambdas` w.r.t. hyperparameters (determined in `compute_hyperderivatives`).
 
-    ---------------
-    Output variable: class instance whose attributes can include `dchi2_dlogalpha`, `dchi2_dlogbeta`, `dchi2_dloggamma`,
+    -------
+    Returns
+    -------
+    out: class instance
+        Class instance whose attributes can include `dchi2_dlogalpha`, `dchi2_dlogbeta`, `dchi2_dloggamma`,
     depending on which hyperparameters are not fixed to `+np.inf`.
     """
     class out_class:
@@ -557,9 +560,7 @@ def hyper_function(
 
     --------
 
-    Output
-
-    Parameters
+    Returns
     --------
     
     tot_chi2: float

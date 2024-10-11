@@ -1,6 +1,6 @@
 """
 Main tool: MDRefinement.
-It refines MD-generated trajectories with customizable refinement and reweights the trajectories.
+It refines MD-generated trajectories with customizable refinement.
 """
 
 import os
