@@ -1,7 +1,6 @@
 """
-Tools to perform reweighting using several refinements.
-It also includes optimization of the hyperparameters through minimization of the chi2 on the test set.
-File n. 4: MDRefinement
+Main tool: MDRefinement.
+It refines MD-generated trajectories with customizable refinement and reweights the trajectories.
 """
 
 import os

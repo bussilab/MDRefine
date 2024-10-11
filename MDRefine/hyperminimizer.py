@@ -1,7 +1,6 @@
 """
-Tools to perform reweighting using several refinements.
-It also includes optimization of the hyperparameters through minimization of the chi2 on the test set.
-File n. 3: hyperminimizer
+Tools n. 3: hyperminimizer.
+It includes the automatic search for the optimal hyperparameters.
 """
 
 import copy
@@ -556,9 +555,9 @@ def hyper_function(
     n_parallel_jobs: int
         Number of parallel jobs.
 
-    ------------
-    Output variables:
-    ------------
+    --------
+    Returns:
+    --------
     
     tot_chi2: float
         Float value of total chi2.

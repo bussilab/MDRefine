@@ -1,7 +1,6 @@
 """
-Tools to perform reweighting using several refinements.
-It also includes optimization of the hyperparameters through minimization of the chi2 on the test set.
-File n. 1: data_loading
+Tools n. 1: data_loading.
+It loads data into the `data` object.
 """
 
 import os
@@ -173,9 +172,9 @@ class data_global_class:
     path_directory: str
         String with the path of the directory with input files.
 
-    ----------------
-    Instance variables:
-    ----------------
+    --------
+    Returns:
+    --------
     system_names : list
         List of names of the investigated molecular systems.
     
@@ -235,9 +234,9 @@ class data_class:
     name_sys: str
         Name of the molecular system taken into account.
     
-    --------------
-    Instance variables:
-    --------------
+    --------
+    Returns:
+    --------
     temperature : float
         Value for the temperature at which the trajectory is simulated.
     
@@ -435,9 +434,9 @@ class data_cycle_class:
     info: dict
         Dictionary for the information about the temperature of `cycle_name` thermodynamic cycle. 
 
-    -------------------
-    Instance variables:
-    -------------------
+    --------
+    Returns:
+    --------
     gexp_DDG : list
         List of two elements: the experimental value and uncertainty of the Delta Delta G.
     
