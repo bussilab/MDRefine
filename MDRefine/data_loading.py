@@ -265,7 +265,7 @@ class data_class:
     weights: array_like
         Numpy 1-dimensional array of length M with the weights (not required to be normalized).
     
-    f: dict
+    f: array_like
         Numpy 2-dimensional array (M x P) of terms required to compute the force-field correction,
         where P is the n. of parameters `pars` and M is the n. of frames.
     
