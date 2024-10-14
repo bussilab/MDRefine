@@ -252,7 +252,7 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
                 inter = vars(Result.hyper_minimization['intermediate'])
 
                 for i, name in enumerate(Result.optimal_hyperpars.keys()):
-                    inter['av_gradient ' + name] = inter['av_gradient'][:, i]
+                    inter['av_gradient log' + name] = inter['av_gradient'][:, i]
                     inter['log10_hyperpars ' + name] = inter['log10_hyperpars'][:, i]
                 del inter['av_gradient'], inter['log10_hyperpars']
 
