@@ -44,13 +44,15 @@ setup(
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Topic :: Scientific/Engineering"
         ],
     install_requires=deps(),
-    python_requires='>=3.9',
+    python_requires='>=3.8',
 #    scripts=['bin/mdrefine'] # command line?
 )
