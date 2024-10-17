@@ -51,6 +51,6 @@ setup(
         "Topic :: Scientific/Engineering"
         ],
     install_requires=deps(),
-    python_requires='>=3.9',
+    python_requires='>=3.6',
 #    scripts=['bin/mdrefine'] # command line?
 )
