@@ -101,6 +101,12 @@ jobs:
         export CPU_COUNT=2
         conda-build -c conda-forge conda
         rm -fr MDRefine # make sure this is not imported by mistake in tests
+    - name: Test 3.13
+      run: |
+        source activate base
+        conda create -n py313 -c conda-forge -c local python=3.13 MDRefine pytest
+        source activate py313
+        pytest -v
     - name: Test 3.12
       run: |
         source activate base
