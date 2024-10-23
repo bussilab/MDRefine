@@ -98,8 +98,10 @@ class Test(unittest.TestCase):
 
                     elif k in ['gexp', 'names', 'g']:
                         for k2 in data.sys[s].gexp.keys():
-                            self.assertTrue((my_dict1[k][k2] == my_dict2[k][k2]).all())
-                    
+                            # self.assertTrue((my_dict1[k][k2] == my_dict2[k][k2]).all())
+                            self.assertTrue(np.array_equal(my_dict1[k][k2], my_dict2[k][k2]))
+                            self.assertTrue(np.allclose(my_dict1[k][k2], my_dict2[k][k2]))
+
                     elif k in ['forward_qs']:
                         for k2 in data.sys[s].forward_qs.keys():
                             self.assertAlmostEqual(np.sum((my_dict1[k][k2] - my_dict2[k][k2])**2), 0)
@@ -111,7 +113,7 @@ class Test(unittest.TestCase):
 
             if hasattr(loaded_data['_global_'], 'cycle_names'):
                 self.assertSetEqual(set(loaded_data['_global_'].cycle_names), set(data._global_.cycle_names))
-
+                
                 for s in infos['global']['cycle_names']:
 
                     my_dict1 = vars(data.cycle[s])
