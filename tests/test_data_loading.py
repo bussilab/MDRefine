@@ -100,7 +100,9 @@ class Test(unittest.TestCase):
                         for k2 in data.sys[s].gexp.keys():
                             # self.assertTrue((my_dict1[k][k2] == my_dict2[k][k2]).all())
                             self.assertTrue(np.array_equal(my_dict1[k][k2], my_dict2[k][k2]))
-                            self.assertTrue(np.allclose(my_dict1[k][k2], my_dict2[k][k2]))
+                            
+                            # np.allclose does not work on strings
+                            # self.assertTrue(np.allclose(my_dict1[k][k2], my_dict2[k][k2]))
 
                     elif k in ['forward_qs']:
                         for k2 in data.sys[s].forward_qs.keys():
