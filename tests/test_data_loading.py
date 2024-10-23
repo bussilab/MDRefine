@@ -96,13 +96,35 @@ class Test(unittest.TestCase):
                     elif k in ['ref', 'n_experiments']:
                         self.assertDictEqual(my_dict1[k], my_dict2[k])
 
-                    elif k in ['gexp', 'names', 'g']:
-                        for k2 in data.sys[s].gexp.keys():
-                            # self.assertTrue((my_dict1[k][k2] == my_dict2[k][k2]).all())
-                            self.assertTrue(np.array_equal(my_dict1[k][k2], my_dict2[k][k2]))
+                    ###### it does not work on some versions of python
+                    # elif k in ['gexp', 'names', 'g']:
+                    #     for k2 in data.sys[s].gexp.keys():
+                    #         # self.assertTrue((my_dict1[k][k2] == my_dict2[k][k2]).all())
+                    #         # self.assertTrue(np.array_equal(my_dict1[k][k2], my_dict2[k][k2]))
                             
-                            # np.allclose does not work on strings
-                            # self.assertTrue(np.allclose(my_dict1[k][k2], my_dict2[k][k2]))
+                    #         # np.allclose does not work on strings
+                    #         # self.assertTrue(np.allclose(my_dict1[k][k2], my_dict2[k][k2]))
+
+                    elif k in ['gexp', 'g']:
+                        for k2 in data.sys[s].gexp.keys():
+                            self.assertAlmostEqual(np.sum((my_dict1[k][k2] - my_dict2[k][k2])**2), 0)
+
+                    elif k in ['names']:
+                        # check element-wise
+                        for k2 in my_dict1['names'].keys():
+
+                            my_array1 = my_dict1['names'][k2]
+                            my_array2 = my_dict2['names'][k2]
+
+                            x1, y1 = np.shape(my_array1)
+                            x2, y2 = np.shape(my_array2)
+
+                            assert x1 == x2
+                            assert y1 == y2
+
+                            for ix in range(x1):
+                                for iy in range(y1):
+                                    assert my_array1[ix][iy] == my_array2[ix][iy]
 
                     elif k in ['forward_qs']:
                         for k2 in data.sys[s].forward_qs.keys():
