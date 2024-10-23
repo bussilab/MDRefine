@@ -237,7 +237,8 @@ def l2_regularization(pars: numpy.ndarray, choice: str = 'plain l2'):
 
 def compute_chi2(ref, weights, g, gexp, if_separate=False):
     """
-    This tool computes the chi2 (for a given molecular system).
+    This tool computes the chi2 (for a given molecular system:
+    the input dictionaries are structured as the attributes of `data.sys[sys_name]`).
     
     Parameters
     ----------
@@ -254,8 +255,8 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
         Dictionary of experimental values specific for the given molecular system (coherently with `g`).
 
     if_separate: bool
-        Boolean variable, True if you are distinguishing between LOWER and UPPER bounds (`name_type + ' LOWER'` or
-        `name_type + ' UPPER'`), needed for minimizations with double bounds.
+        Boolean variable, True if you are distinguishing between LOWER and UPPER bounds
+        (`name_type + ' LOWER'` or `name_type + ' UPPER'`), needed for minimizations with double bounds.
     --------
 
     Returns
@@ -348,7 +349,8 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         `data.sys[s]` has attributes `temperature` (of the system) and `logZ`.
         
     logZ_P : dict
-        Dictionary for logarithm of the partition function Z_P, namely, average value of exp(-V_phi(x)/temperature) over the original ensemble.
+        Dictionary for logarithm of the partition function `Z_P`, namely, average value of `exp(-V_phi(x)/temperature)` over the original ensemble;
+        its keys are the selected `system_names`.
     --------
 
     Returns
@@ -489,10 +491,10 @@ def loss_function(
 
     The order followed for `lambdas` is the one of `compute_js`, which is not modified in any step.
 
-    If `if_save`: `loss_function` will return `Details` class instance with the detailed results; otherwise, it will return just the loss value.
+    If `if_save`: `loss_function` returns `Details` class instance with the detailed results; otherwise, it returns just the loss value.
 
-    The input data will not be modified by `loss_function` (neither explicitely by `loss_function` nor by its inner functions):
-    for forward-model updating, you are going to define a new variable `g` (through `copy.deepcopy`).
+    The input data are not modified by `loss_function` (neither explicitely by `loss_function` nor by its inner functions):
+    for forward-model updating, `loss_function` defines a new variable `g` (through `copy.deepcopy`).
 
     Parameters
     ----------
