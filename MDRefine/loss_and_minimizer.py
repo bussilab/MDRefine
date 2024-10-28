@@ -1204,17 +1204,17 @@ class class_test:
                 self.forward_qs[name_type] = data_mol.forward_qs[name_type][list(test_frames_mol), :]
 
             if if_all_frames:
-                self.forward_qs_trained = data_train_mol.forward_qs
+                self.forward_qs_trained = copy.deepcopy(data_train_mol.forward_qs)
 
         if hasattr(data_mol, 'forward_model'):
             self.forward_model = data_mol.forward_model
 
         self.ref = data_mol.ref
-        self.selected_obs = data_train_mol.selected_obs  # same observables as in training
+        self.selected_obs = copy.deepcopy(data_train_mol.selected_obs)  # same observables as in training
         self.selected_obs_new = test_obs_mol
 
-        self.gexp = data_train_mol.gexp
-        self.n_experiments = data_train_mol.n_experiments
+        self.gexp = copy.deepcopy(data_train_mol).gexp
+        self.n_experiments = copy.deepcopy(data_train_mol).n_experiments
         self.temperature = data_mol.temperature
 
 
@@ -1449,22 +1449,24 @@ def select_traintest(
 
 
     # global properties:
+
+    data_ = copy.deepcopy(data)
     
     class my_data_traintest:
-        def __init__(self, data):
-            self.properties = data.properties
+        def __init__(self, data_):
+            self.properties = data_.properties
             self.mol = {}
 
-    data_train = my_data_traintest(data)
-    data_test = my_data_traintest(data)
+    data_train = my_data_traintest(data_)
+    data_test = my_data_traintest(data_)
 
     # for over different systems:
 
     for name_mol in system_names:
 
-        data_train.mol[name_mol] = class_train(data.mol[name_mol], test_frames[name_mol], test_obs[name_mol])
+        data_train.mol[name_mol] = class_train(data_.mol[name_mol], test_frames[name_mol], test_obs[name_mol])
         data_test.mol[name_mol] = class_test(
-            data.mol[name_mol], test_frames[name_mol], test_obs[name_mol], if_all_frames, data_train.mol[name_mol])
+            data_.mol[name_mol], test_frames[name_mol], test_obs[name_mol], if_all_frames, data_train.mol[name_mol])
 
     # """ if some type of observables are not included in test observables, delete them to avoid empty items """
     # for name_mol in system_names:
@@ -1494,8 +1496,8 @@ def select_traintest(
             """ no training observables of this kind"""
             del data_test.mol[s1].gexp[s2], data_test.mol[s1].g[s2], data_test.mol[s1].n_experiments[s2]
             del data_test.mol[s1].selected_obs[s2]  # , data_test[s1].names[s2]
-            del data_train.mol[s1].gexp[s2], data_train.mol[s1].g[s2], data_train.mol[s1].n_experiments[s2]
-            del data_train.mol[s1].selected_obs[s2]  # , data_train[s1].names[s2]
+            del data_train.mol[s1].g[s2], data_train.mol[s1].ref[s2], data_train.mol[s1].names[s2]
+            del data_train.mol[s1].gexp[s2], data_train.mol[s1].n_experiments[s2]
 
         for s2 in my_list1:
             test_obs[s1][s2] = np.int64(np.array([]))

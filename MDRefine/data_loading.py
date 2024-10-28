@@ -369,6 +369,9 @@ class data_class:
             def my_forward_model(a, b, c=None):
                 try:
                     out = info['forward_model'](a, b, c)
+                    for s in c.keys():
+                        if c[s] == []:
+                            del out[s]
                 except:
                     assert c is None, 'you have selected_obs but the forward model is not suitably defined!'
                     out = info['forward_model'](a, b)
