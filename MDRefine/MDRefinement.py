@@ -1,5 +1,5 @@
 """
-Main tool: MDRefinement.
+Main tool: `MDRefinement`.
 It refines MD-generated trajectories with customizable refinement.
 """
 
@@ -123,7 +123,7 @@ def MDRefinement(
     else:
         coeff_names = []
     if not np.isinf(gamma):
-        coeff_names = coeff_names + list(data._global_.forward_coeffs_0.keys())
+        coeff_names = coeff_names + list(data.properties.forward_coeffs_0.keys())
 
     input_values = {
         'stride': stride, 'starting_alpha': starting_alpha, 'starting_beta': starting_beta,

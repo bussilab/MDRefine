@@ -1,5 +1,5 @@
 """
-Tools n. 3: hyperminimizer.
+Tools n. 3: `hyperminimizer`.
 It performs the automatic search for the optimal hyperparameters.
 """
 
@@ -56,7 +56,7 @@ def compute_hyperderivatives(
     log10_alpha, log10_beta, log10_gamma: floats
         Logarithms (in base 10) of the corresponding hyperparameters alpha, beta, gamma (`np.inf` by default).
     """
-    system_names = data._global_.system_names
+    system_names = data.properties.system_names
 
     if np.isposinf(log10_beta) and np.isposinf(log10_gamma) and not np.isinf(log10_alpha):
 
@@ -64,7 +64,7 @@ def compute_hyperderivatives(
 
         data_n_experiments = {}
         for k in system_names:
-            data_n_experiments[k] = data.sys[k].n_experiments
+            data_n_experiments[k] = data.mol[k].n_experiments
         js = compute_js(data_n_experiments)
 
         class derivatives:
@@ -78,8 +78,8 @@ def compute_hyperderivatives(
             # indices = np.nonzero(my_lambdas)[0]
 
             refs = []
-            for name in data.sys[name_sys].n_experiments.keys():
-                refs.extend(data.sys[name_sys].ref[name]*data.sys[name_sys].n_experiments[name])
+            for name in data.mol[name_sys].n_experiments.keys():
+                refs.extend(data.mol[name_sys].ref[name]*data.mol[name_sys].n_experiments[name])
 
             # indices of lambdas NOT on constraints
             indices = np.array([k for k in range(len(my_lambdas)) if ((not my_lambdas[k] == 0) or (refs[k] == '='))])
@@ -91,10 +91,10 @@ def compute_hyperderivatives(
 
                 my_lambdas = my_lambdas[indices]
 
-                g = np.hstack([data.sys[name_sys].g[k] for k in data.sys[name_sys].n_experiments.keys()])[:, indices]
-                gexp = np.vstack([data.sys[name_sys].gexp[k] for k in data.sys[name_sys].n_experiments.keys()])[indices]
+                g = np.hstack([data.mol[name_sys].g[k] for k in data.mol[name_sys].n_experiments.keys()])[:, indices]
+                gexp = np.vstack([data.mol[name_sys].gexp[k] for k in data.mol[name_sys].n_experiments.keys()])[indices]
 
-                my_args = (my_lambdas, g, gexp, data.sys[name_sys].weights, alpha)
+                my_args = (my_lambdas, g, gexp, data.mol[name_sys].weights, alpha)
                 Hess_inv = np.linalg.inv(derivatives_funs.d2gamma_dlambdas2(*my_args))
 
                 derivatives.dlambdas_dlogalpha.append(
@@ -119,7 +119,7 @@ def compute_hyperderivatives(
 
             data_n_experiments = {}
             for k in system_names:
-                data_n_experiments[k] = data.sys[k].n_experiments
+                data_n_experiments[k] = data.mol[k].n_experiments
             js = compute_js(data_n_experiments)
 
             """
@@ -139,7 +139,7 @@ def compute_hyperderivatives(
             """ compute new weights with ff correction phi """
             if not np.isposinf(beta):
 
-                names_ff_pars = data._global_.names_ff_pars
+                names_ff_pars = data.properties.names_ff_pars
                 pars_ff = pars_ff_fm[:len(names_ff_pars)]
 
                 correction_ff = {}
@@ -147,18 +147,18 @@ def compute_hyperderivatives(
                 logZ_P = {}
 
                 for name in system_names:
-                    if hasattr(data.sys[name], 'ff_correction'):
-                        correction_ff[name] = data.sys[name].ff_correction(pars_ff, data.sys[name].f)
-                        correction_ff[name] = correction_ff[name]/data.sys[name].temperature
-                        weights_P[name], logZ_P[name] = compute_new_weights(data.sys[name].weights, correction_ff[name])
+                    if hasattr(data.mol[name], 'ff_correction'):
+                        correction_ff[name] = data.mol[name].ff_correction(pars_ff, data.mol[name].f)
+                        correction_ff[name] = correction_ff[name]/data.mol[name].temperature
+                        weights_P[name], logZ_P[name] = compute_new_weights(data.mol[name].weights, correction_ff[name])
 
                     else:  # if beta is not infinite, but there are systems without force-field corrections:
-                        weights_P[name] = data.sys[name].weights
+                        weights_P[name] = data.mol[name].weights
                         logZ_P[name] = 0
             else:
                 weights_P = {}
                 for name in system_names:
-                    weights_P[name] = data.sys[name].weights
+                    weights_P[name] = data.mol[name].weights
 
             """ compute forward quantities through (new) forward coefficients theta"""
 
@@ -169,22 +169,22 @@ def compute_hyperderivatives(
             if np.isposinf(gamma):
 
                 for name in system_names:
-                    if hasattr(data.sys[name], 'g'):
-                        g[name] = copy.deepcopy(data.sys[name].g)
+                    if hasattr(data.mol[name], 'g'):
+                        g[name] = copy.deepcopy(data.mol[name].g)
             else:
 
                 for name_sys in system_names:
-                    if hasattr(data.sys[name_sys], 'g'):
-                        g[name_sys] = copy.deepcopy(data.sys[name_sys].g)
+                    if hasattr(data.mol[name_sys], 'g'):
+                        g[name_sys] = copy.deepcopy(data.mol[name_sys].g)
                     else:
                         g[name_sys] = {}
 
-                    if hasattr(data.sys[name_sys], 'selected_obs'):
-                        selected_obs = data.sys[name_sys].selected_obs
+                    if hasattr(data.mol[name_sys], 'selected_obs'):
+                        selected_obs = data.mol[name_sys].selected_obs
                     else:
                         selected_obs = None
 
-                    fm_observables = data.sys[name_sys].forward_model(pars_fm, data.sys[name_sys].forward_qs, selected_obs)
+                    fm_observables = data.mol[name_sys].forward_model(pars_fm, data.mol[name_sys].forward_qs, selected_obs)
 
                     for name in fm_observables.keys():
                         g[name_sys][name] = fm_observables[name]
@@ -199,8 +199,8 @@ def compute_hyperderivatives(
 
                 """ use indices to select lambdas NOT on constraints """
                 refs = []
-                for name in data.sys[name_sys].n_experiments.keys():
-                    refs.extend(data.sys[name_sys].ref[name]*data.sys[name_sys].n_experiments[name])
+                for name in data.mol[name_sys].n_experiments.keys():
+                    refs.extend(data.mol[name_sys].ref[name]*data.mol[name_sys].n_experiments[name])
 
                 # indices of lambdas NOT on constraints
                 indices = np.array([k for k in range(len(my_lambdas)) if ((not my_lambdas[k] == 0) or (refs[k] == '='))])
@@ -212,8 +212,8 @@ def compute_hyperderivatives(
 
                     my_lambdas = my_lambdas[indices]
 
-                    my_g = np.hstack([g[name_sys][k] for k in data.sys[name_sys].n_experiments])[:, indices]
-                    my_gexp = np.vstack([data.sys[name_sys].gexp[k] for k in data.sys[name_sys].n_experiments])[indices]
+                    my_g = np.hstack([g[name_sys][k] for k in data.mol[name_sys].n_experiments])[:, indices]
+                    my_gexp = np.vstack([data.mol[name_sys].gexp[k] for k in data.mol[name_sys].n_experiments])[indices]
 
                     my_args = (my_lambdas, my_g, my_gexp, weights_P[name_sys], alpha)
 
@@ -391,7 +391,7 @@ def compute_hypergradient(
         Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax Autodiff (they include those employed in `compute_hyperderivatives`
         and `dchi2_dpars` and/or `dchi2_dlambdas`).
     """
-    system_names = data_train._global_.system_names
+    system_names = data_train.properties.system_names
 
     """ compute derivatives of optimal pars w.r.t. hyper parameters """
     if not np.isinf(log10_alpha):
@@ -399,9 +399,9 @@ def compute_hypergradient(
         refs = []
 
         for name_sys in system_names:
-            for name in data_train.sys[name_sys].n_experiments.keys():
+            for name in data_train.mol[name_sys].n_experiments.keys():
                 lambdas_vec.append(lambdas[name_sys][name])
-                refs.extend(data_train.sys[name_sys].ref[name]*data_train.sys[name_sys].n_experiments[name])
+                refs.extend(data_train.mol[name_sys].ref[name]*data_train.mol[name_sys].n_experiments[name])
 
         lambdas_vec = np.concatenate((lambdas_vec))
 
@@ -602,13 +602,13 @@ def hyper_function(
     names_ff_pars = []
 
     if not np.isinf(beta):
-        names_ff_pars = data._global_.names_ff_pars
+        names_ff_pars = data.properties.names_ff_pars
         pars0 = np.zeros(len(names_ff_pars))
     else:
         pars0 = np.array([])
 
     if not np.isinf(gamma):
-        pars0 = np.concatenate(([pars0, np.array(data._global_.forward_coeffs_0)]))
+        pars0 = np.concatenate(([pars0, np.array(data.properties.forward_coeffs_0)]))
 
     """ for each seed: """
 

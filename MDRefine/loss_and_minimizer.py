@@ -1,5 +1,5 @@
 """
-Tools n. 2: loss_and_minimizer.
+Tools n. 2: `loss_and_minimizer`.
 It defines the loss functions and minimizes it.
 It includes also `select_traintest` and `validation`.
 """
@@ -23,22 +23,22 @@ def compute_js(n_experiments):
     """
     This tool computes the indices `js` (defined by cumulative sums) for lambdas corresponding to different molecular systems and
     types of observables. Be careful to follow always the same order: let's choose it as that of `data.n_experiments`,
-    which is a dictionary `n_experiments[name_sys][name]`.
+    which is a dictionary `n_experiments[name_mol][name]`.
     """
 
     js = []
 
-    for i_sys, name_sys in enumerate(n_experiments.keys()):
+    for i_mol, name_mol in enumerate(n_experiments.keys()):
         js.append([])
-        for name in n_experiments[name_sys].keys():
-            js[i_sys].append(n_experiments[name_sys][name])
-        js[i_sys] = [0] + np.cumsum(np.array(js[i_sys])).tolist()
+        for name in n_experiments[name_mol].keys():
+            js[i_mol].append(n_experiments[name_mol][name])
+        js[i_mol] = [0] + np.cumsum(np.array(js[i_mol])).tolist()
 
     js[0] = np.array(js[0])
 
     if len(n_experiments.keys()) > 1:
-        for i_sys in range(1, len(n_experiments.keys())):
-            js[i_sys] = np.array(js[i_sys]) + js[i_sys-1][-1]
+        for i_mol in range(1, len(n_experiments.keys())):
+            js[i_mol] = np.array(js[i_mol]) + js[i_mol-1][-1]
 
     return js
 
@@ -119,7 +119,7 @@ def normalize_observables(gexp, g, weights=None):
     Parameters
     ----------
     gexp, g : dicts
-        Dictionaries corresponding to `data.sys[name_sys].gexp` and `data.sys[name_sys].g`.
+        Dictionaries corresponding to `data.mol[name_mol].gexp` and `data.mol[name_mol].g`.
         
     weights : array-like
         Numpy 1-dimensional array, by default `None` (namely, equal weight for each frame).
@@ -238,7 +238,7 @@ def l2_regularization(pars: numpy.ndarray, choice: str = 'plain l2'):
 def compute_chi2(ref, weights, g, gexp, if_separate=False):
     """
     This tool computes the chi2 (for a given molecular system:
-    the input dictionaries are structured as the attributes of `data.sys[sys_name]`).
+    the input dictionaries are structured as the attributes of `data.mol[mol_name]`).
     
     Parameters
     ----------
@@ -342,11 +342,11 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
     Parameters
     ----------
     data : class instance
-        Object `data`; here, `data._global_` has the attribute `cycle_names` (list of names of the thermodynamic cycles);
-        `for s in data._global_.cycle_names`: `data.cycle[s]` has attributes `temperature` (of the cycle) and `gexp_DDG`;
+        Object `data`; here, `data.properties` has the attribute `cycle_names` (list of names of the thermodynamic cycles);
+        `for s in data.properties.cycle_names`: `data.cycle[s]` has attributes `temperature` (of the cycle) and `gexp_DDG`;
         `for s in my_list` (where `my_list` is the list of system names associated to a thermodynamic cycle
-        `my_list = [x2 for x in list(data._global_.cycle_names.values()) for x2 in x]`):
-        `data.sys[s]` has attributes `temperature` (of the system) and `logZ`.
+        `my_list = [x2 for x in list(data.properties.cycle_names.values()) for x2 in x]`):
+        `data.mol[s]` has attributes `temperature` (of the system) and `logZ`.
         
     logZ_P : dict
         Dictionary for logarithm of the partition function `Z_P`, namely, average value of `exp(-V_phi(x)/temperature)` over the original ensemble;
@@ -365,27 +365,27 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         Total contribution to the loss function from free-energy differences Delta Delta G,
         given by 1/2 of the total chi2.
     """
-    cycle_names = data._global_.cycle_names
+    cycle_names = data.properties.cycle_names
 
     new_av_DG = {}
     chi2 = {}
     loss = 0
 
     for cycle_name in cycle_names:
-        my_list = data._global_.cycle_names[cycle_name]
+        my_list = data.properties.cycle_names[cycle_name]
         for s in my_list:
             if (s in logZ_P.keys()) and (not logZ_P[s] == 0):
                 # correction only on MD
-                new_av_DG[s] = -data.sys[s].temperature*(logZ_P[s] + data.sys[s].logZ)
+                new_av_DG[s] = -data.mol[s].temperature*(logZ_P[s] + data.mol[s].logZ)
             if s not in logZ_P:
                 logZ_P[s] = 0
 
         DeltaDeltaG = -(
-            logZ_P[my_list[3]] + data.sys[my_list[3]].logZ  # MD
-            - logZ_P[my_list[1]] - data.sys[my_list[1]].logZ)  # AD
+            logZ_P[my_list[3]] + data.mol[my_list[3]].logZ  # MD
+            - logZ_P[my_list[1]] - data.mol[my_list[1]].logZ)  # AD
 
-        DeltaDeltaG += logZ_P[my_list[2]] + data.sys[my_list[2]].logZ  # MS
-        - logZ_P[my_list[0]] - data.sys[my_list[0]].logZ  # AS
+        DeltaDeltaG += logZ_P[my_list[2]] + data.mol[my_list[2]].logZ  # MS
+        - logZ_P[my_list[0]] - data.mol[my_list[0]].logZ  # AS
 
         DeltaDeltaG = DeltaDeltaG*data.cycle[cycle_name].temperature
 
@@ -404,8 +404,8 @@ def compute_details_ER(weights_P, g, data, lambdas, alpha):
     It cycles over different systems. It acts after the minimization of the loss function inside `loss_function` (not for the minimization
     itself, since we exploit the Gamma function).
 
-    Be careful to use either: normalized values for `lambdas` and `g` (if `hasattr(data.sys[name_sys],'normg_mean')`) or non-normalized ones
-    (if `not hasattr(data.sys[name_sys],'normg_mean')`).
+    Be careful to use either: normalized values for `lambdas` and `g` (if `hasattr(data.mol[name_mol],'normg_mean')`) or non-normalized ones
+    (if `not hasattr(data.mol[name_mol],'normg_mean')`).
     
     Parameters
     ----------
@@ -414,7 +414,7 @@ def compute_details_ER(weights_P, g, data, lambdas, alpha):
         in the fully combined refinement).
         
     g : dict
-        Dictionary of dictionaries, like for `data.sys[name_sys].g`, corresponding to the observables (computed with updated forward-model coefficients).
+        Dictionary of dictionaries, like for `data.mol[name_mol].g`, corresponding to the observables (computed with updated forward-model coefficients).
     
     data : dict
         The original data object.
@@ -439,35 +439,35 @@ def compute_details_ER(weights_P, g, data, lambdas, alpha):
 
     Details = Details_class()
 
-    system_names = data._global_.system_names
+    system_names = data.properties.system_names
 
-    for name_sys in system_names:
+    for name_mol in system_names:
 
-        if hasattr(data.sys[name_sys], 'normg_mean'):
+        if hasattr(data.mol[name_mol], 'normg_mean'):
             print('WARNING: you are using normalized observables!')
 
-        flatten_g = np.hstack([g[name_sys][k] for k in data.sys[name_sys].n_experiments.keys()])
-        flatten_gexp = np.vstack([data.sys[name_sys].gexp[k] for k in data.sys[name_sys].n_experiments.keys()])
-        correction = np.einsum('ij,j', flatten_g, lambdas[name_sys])
+        flatten_g = np.hstack([g[name_mol][k] for k in data.mol[name_mol].n_experiments.keys()])
+        flatten_gexp = np.vstack([data.mol[name_mol].gexp[k] for k in data.mol[name_mol].n_experiments.keys()])
+        correction = np.einsum('ij,j', flatten_g, lambdas[name_mol])
 
-        out = compute_new_weights(weights_P[name_sys], correction)
-        Details.weights_new[name_sys] = out[0]
-        Details.logZ_new[name_sys] = out[1]
+        out = compute_new_weights(weights_P[name_mol], correction)
+        Details.weights_new[name_mol] = out[0]
+        Details.logZ_new[name_mol] = out[1]
 
-        out = compute_chi2(data.sys[name_sys].ref, Details.weights_new[name_sys], g[name_sys], data.sys[name_sys].gexp)
-        Details.av_g[name_sys] = out[0]
-        Details.chi2[name_sys] = out[1]
+        out = compute_chi2(data.mol[name_mol].ref, Details.weights_new[name_mol], g[name_mol], data.mol[name_mol].gexp)
+        Details.av_g[name_mol] = out[0]
+        Details.chi2[name_mol] = out[1]
         loss1 = 1/2*out[3]
 
-        Details.D_KL_alpha[name_sys] = compute_D_KL(Details.weights_new[name_sys], correction, 1, Details.logZ_new[name_sys])
-        loss1 += alpha*Details.D_KL_alpha[name_sys]
+        Details.D_KL_alpha[name_mol] = compute_D_KL(Details.weights_new[name_mol], correction, 1, Details.logZ_new[name_mol])
+        loss1 += alpha*Details.D_KL_alpha[name_mol]
         Details.loss_explicit += loss1
 
         """ You could also use lambdas to evaluate immediately chi2 and D_KL
         (if lambdas are determined from the given frames) """
-        loss2 = -alpha*gamma_function(lambdas[name_sys], flatten_g, flatten_gexp, weights_P[name_sys], alpha)
+        loss2 = -alpha*gamma_function(lambdas[name_mol], flatten_g, flatten_gexp, weights_P[name_mol], alpha)
 
-        Details.abs_difference[name_sys] = np.abs(loss2-loss1)
+        Details.abs_difference[name_mol] = np.abs(loss2-loss1)
 
     return Details
 
@@ -530,7 +530,7 @@ def loss_function(
     assert beta >= 0, 'beta must be positive or zero'
     assert gamma >= 0, 'gamma must be positive or zero'
 
-    system_names = data._global_.system_names
+    system_names = data.properties.system_names
 
     if_fixed_lambdas = None  # to avoid error in Pylint
     if not np.isinf(alpha):
@@ -538,13 +538,13 @@ def loss_function(
             if_fixed_lambdas = False
             global lambdas
             if 'lambdas' not in globals():
-                lambdas = np.zeros(data._global_.tot_n_experiments(data))
+                lambdas = np.zeros(data.properties.tot_n_experiments(data))
         else:
             if_fixed_lambdas = True
             lambdas = fixed_lambdas
 
     if not np.isinf(beta):
-        names_ff_pars = data._global_.names_ff_pars
+        names_ff_pars = data.properties.names_ff_pars
         pars_ff = pars_ff_fm[:len(names_ff_pars)]
 
     pars_fm = None  # to avoid error in Pylint
@@ -564,57 +564,57 @@ def loss_function(
 
     g = {}
 
-    for name_sys in system_names:
+    for name_mol in system_names:
 
         """ 1a. compute force-field corrections and corresponding re-weights """
 
         if not np.isinf(beta):
-            if hasattr(data.sys[name_sys], 'ff_correction'):
-                correction_ff[name_sys] = data.sys[name_sys].ff_correction(pars_ff, data.sys[name_sys].f)
-                weights_P[name_sys], logZ_P[name_sys] = compute_new_weights(
-                    data.sys[name_sys].weights, correction_ff[name_sys]/data.sys[name_sys].temperature)
+            if hasattr(data.mol[name_mol], 'ff_correction'):
+                correction_ff[name_mol] = data.mol[name_mol].ff_correction(pars_ff, data.mol[name_mol].f)
+                weights_P[name_mol], logZ_P[name_mol] = compute_new_weights(
+                    data.mol[name_mol].weights, correction_ff[name_mol]/data.mol[name_mol].temperature)
 
             else:  # if beta is not infinite, but there are systems without force-field corrections:
-                weights_P[name_sys] = data.sys[name_sys].weights
-                logZ_P[name_sys] = 0
+                weights_P[name_mol] = data.mol[name_mol].weights
+                logZ_P[name_mol] = 0
         else:
-            weights_P[name_sys] = data.sys[name_sys].weights
-            logZ_P[name_sys] = 0
+            weights_P[name_mol] = data.mol[name_mol].weights
+            logZ_P[name_mol] = 0
 
         """ 1b. if np.isinf(gamma): g is re-computed observables data.g through updated forward model
             (notice you also have some observables directly as data.g without updating of forward model);
-            else: g is data.g (initial data.g[name_sys] if gamma == np.inf). """
+            else: g is data.g (initial data.g[name_mol] if gamma == np.inf). """
 
         if np.isinf(gamma):
-            if hasattr(data.sys[name_sys], 'g'):
-                g[name_sys] = copy.deepcopy(data.sys[name_sys].g)
+            if hasattr(data.mol[name_mol], 'g'):
+                g[name_mol] = copy.deepcopy(data.mol[name_mol].g)
         else:
-            if hasattr(data.sys[name_sys], 'g'):
-                g[name_sys] = copy.deepcopy(data.sys[name_sys].g)
+            if hasattr(data.mol[name_mol], 'g'):
+                g[name_mol] = copy.deepcopy(data.mol[name_mol].g)
             else:
-                g[name_sys] = {}
+                g[name_mol] = {}
 
-            if hasattr(data.sys[name_sys], 'selected_obs'):
-                selected_obs = data.sys[name_sys].selected_obs
+            if hasattr(data.mol[name_mol], 'selected_obs'):
+                selected_obs = data.mol[name_mol].selected_obs
             else:
                 selected_obs = None
 
-            fm_observables = data.sys[name_sys].forward_model(pars_fm, data.sys[name_sys].forward_qs, selected_obs)
+            fm_observables = data.mol[name_mol].forward_model(pars_fm, data.mol[name_mol].forward_qs, selected_obs)
 
             for name in fm_observables.keys():
 
-                g[name_sys][name] = fm_observables[name]
-                if hasattr(data.sys[name_sys], 'normg_mean'):
-                    g[name_sys][name] = (g[name_sys][name]-data.sys[name_sys].normg_mean[name])/data.sys[name_sys].normg_std[name]
+                g[name_mol][name] = fm_observables[name]
+                if hasattr(data.mol[name_mol], 'normg_mean'):
+                    g[name_mol][name] = (g[name_mol][name]-data.mol[name_mol].normg_mean[name])/data.mol[name_mol].normg_std[name]
 
             del fm_observables
 
-        if (np.isinf(gamma) and hasattr(data.sys[name_sys], 'g')) or not np.isinf(gamma):
-            for name in data.sys[name_sys].ref.keys():
-                if data.sys[name_sys].ref[name] == '><':
-                    g[name_sys][name+' LOWER'] = g[name_sys][name]
-                    g[name_sys][name+' UPPER'] = g[name_sys][name]
-                    del g[name_sys][name]
+        if (np.isinf(gamma) and hasattr(data.mol[name_mol], 'g')) or not np.isinf(gamma):
+            for name in data.mol[name_mol].ref.keys():
+                if data.mol[name_mol].ref[name] == '><':
+                    g[name_mol][name+' LOWER'] = g[name_mol][name]
+                    g[name_mol][name+' UPPER'] = g[name_mol][name]
+                    del g[name_mol][name]
 
     """ 2. compute chi2 (if np.isinf(alpha)) or Gamma function (otherwise) """
 
@@ -623,41 +623,41 @@ def loss_function(
         av_g = {}
         chi2 = {}
 
-        if hasattr(data._global_, 'cycle_names'):
+        if hasattr(data.properties, 'cycle_names'):
             out = compute_DeltaDeltaG_terms(data, logZ_P)
             av_g = out[0]
             chi2 = out[1]
             loss += out[2]
 
-        for name_sys in system_names:
-            if hasattr(data.sys[name_sys], 'g'):
-                out = compute_chi2(data.sys[name_sys].ref, weights_P[name_sys], g[name_sys], data.sys[name_sys].gexp, True)
-                av_g[name_sys] = out[0]
-                chi2[name_sys] = out[1]
+        for name_mol in system_names:
+            if hasattr(data.mol[name_mol], 'g'):
+                out = compute_chi2(data.mol[name_mol].ref, weights_P[name_mol], g[name_mol], data.mol[name_mol].gexp, True)
+                av_g[name_mol] = out[0]
+                chi2[name_mol] = out[1]
                 loss += 1/2*out[3]
 
     else:
 
         my_dict = {}
         for k in system_names:
-            my_dict[k] = data.sys[k].n_experiments
+            my_dict[k] = data.mol[k].n_experiments
         js = compute_js(my_dict)
 
         x0 = {}
         flatten_g = {}
         flatten_gexp = {}
 
-        for i_sys, name_sys in enumerate(system_names):
+        for i_mol, name_mol in enumerate(system_names):
 
-            x0[name_sys] = np.array(lambdas[js[i_sys][0]:js[i_sys][-1]])
-            flatten_g[name_sys] = np.hstack([g[name_sys][k] for k in data.sys[name_sys].n_experiments.keys()])
-            flatten_gexp[name_sys] = np.vstack([data.sys[name_sys].gexp[k] for k in data.sys[name_sys].n_experiments.keys()])
+            x0[name_mol] = np.array(lambdas[js[i_mol][0]:js[i_mol][-1]])
+            flatten_g[name_mol] = np.hstack([g[name_mol][k] for k in data.mol[name_mol].n_experiments.keys()])
+            flatten_gexp[name_mol] = np.vstack([data.mol[name_mol].gexp[k] for k in data.mol[name_mol].n_experiments.keys()])
 
         gamma_value = 0
 
         if if_fixed_lambdas:
-            for name_sys in system_names:
-                args = (x0[name_sys], flatten_g[name_sys], flatten_gexp[name_sys], weights_P[name_sys], alpha)
+            for name_mol in system_names:
+                args = (x0[name_mol], flatten_g[name_mol], flatten_gexp[name_mol], weights_P[name_mol], alpha)
                 gamma_value += gamma_function(*args)
         else:
 
@@ -665,10 +665,10 @@ def loss_function(
             minis = {}
             mini_x = []
 
-            for name_sys in system_names:
+            for name_mol in system_names:
 
                 if bounds is not None:
-                    boundaries = bounds[name_sys]
+                    boundaries = bounds[name_mol]
                     method = 'L-BFGS-B'
                 else:
                     boundaries = None
@@ -678,11 +678,11 @@ def loss_function(
                 if method == 'L-BFGS-B':
                     options['ftol'] = 0
 
-                args = (flatten_g[name_sys], flatten_gexp[name_sys], weights_P[name_sys], alpha, True)
+                args = (flatten_g[name_mol], flatten_gexp[name_mol], weights_P[name_mol], alpha, True)
                 mini = minimize(
-                    gamma_function, x0[name_sys], args=args, method=method, bounds=boundaries, jac=True, options=options)
+                    gamma_function, x0[name_mol], args=args, method=method, bounds=boundaries, jac=True, options=options)
 
-                minis[name_sys] = mini
+                minis[name_mol] = mini
                 mini_x.append(mini.x)
                 gamma_value += mini.fun
 
@@ -701,14 +701,14 @@ def loss_function(
             loss += beta*reg_ff
         else:
             reg_ff = {}
-            for name_sys in correction_ff.keys():
-                reg_ff[name_sys] = compute_D_KL(
-                    weights_P[name_sys], correction_ff[name_sys], data.sys[name_sys].temperature, logZ_P[name_sys])
-                loss += beta*reg_ff[name_sys]
+            for name_mol in correction_ff.keys():
+                reg_ff[name_mol] = compute_D_KL(
+                    weights_P[name_mol], correction_ff[name_mol], data.mol[name_mol].temperature, logZ_P[name_mol])
+                loss += beta*reg_ff[name_mol]
 
     """ 4. add regularization of forward-model coefficients """
     if not np.isinf(gamma):
-        reg_fm = regularization['forward_model_reg'](pars_fm, data._global_.forward_coeffs_0)
+        reg_fm = regularization['forward_model_reg'](pars_fm, data.properties.forward_coeffs_0)
         loss += gamma*reg_fm
 
     """ 5. if if_save, save values (in detail) """
@@ -743,8 +743,8 @@ def loss_function(
 
             """ Details_ER has attributes with names different from those of Details, as defined up to now """
             dict_lambdas = {}
-            for i_sys, name_sys in enumerate(system_names):
-                dict_lambdas[name_sys] = np.array(lambdas[js[i_sys][0]:js[i_sys][-1]])
+            for i_mol, name_mol in enumerate(system_names):
+                dict_lambdas[name_mol] = np.array(lambdas[js[i_mol][0]:js[i_mol][-1]])
 
             Details_ER = compute_details_ER(weights_P, g, data, dict_lambdas, alpha)
 
@@ -755,8 +755,8 @@ def loss_function(
 
             if hasattr(Details, 'loss_explicit'):
                 if not np.isinf(beta):
-                    for name_sys in system_names:
-                        Details.loss_explicit += beta*reg_ff[name_sys]
+                    for name_mol in system_names:
+                        Details.loss_explicit += beta*reg_ff[name_mol]
                 if not np.isinf(gamma):
                     Details.loss_explicit += gamma*reg_fm
             else:
@@ -773,8 +773,8 @@ def loss_function(
 
         if np.isinf(alpha) and np.isinf(beta) and not np.isinf(gamma):
             Details.weights_new = {}
-            for name_sys in system_names:
-                Details.weights_new[name_sys] = data.sys[name_sys].weights
+            for name_mol in system_names:
+                Details.weights_new[name_mol] = data.mol[name_mol].weights
             print('new weights are equal to original weights')
 
         if Details.loss_explicit is None:
@@ -849,44 +849,44 @@ def loss_function_and_grad(
 
 def deconvolve_lambdas(data, lambdas: numpy.ndarray, if_denormalize: bool = True):
     """
-    This tool deconvolves `lambdas` from Numpy array to dictionary of dictionaries (corresponding to `data.sys[name_sys].g`);
-    if `if_denormalize`, then `lambdas` has been computed with normalized data, so use `data.sys[name_sys].normg_std` and `data.sys[name_sys].normg_mean`
+    This tool deconvolves `lambdas` from Numpy array to dictionary of dictionaries (corresponding to `data.mol[name_mol].g`);
+    if `if_denormalize`, then `lambdas` has been computed with normalized data, so use `data.mol[name_mol].normg_std` and `data.mol[name_mol].normg_mean`
     in order to go back to corresponding lambdas for non-normalized data. The order of `lambdas` is the one described in `compute_js`.
     """
     dict_lambdas = {}
 
     ns = 0
 
-    system_names = data._global_.system_names
+    system_names = data.properties.system_names
 
-    for name_sys in system_names:
+    for name_mol in system_names:
 
-        dict_lambdas[name_sys] = {}
+        dict_lambdas[name_mol] = {}
 
-        for name in data.sys[name_sys].n_experiments.keys():
-            dict_lambdas[name_sys][name] = lambdas[ns:(ns+data.sys[name_sys].n_experiments[name])]
-            ns += data.sys[name_sys].n_experiments[name]
+        for name in data.mol[name_mol].n_experiments.keys():
+            dict_lambdas[name_mol][name] = lambdas[ns:(ns+data.mol[name_mol].n_experiments[name])]
+            ns += data.mol[name_mol].n_experiments[name]
 
         if if_denormalize:
-            assert hasattr(data.sys[name_sys], 'normg_std'), 'Error: missing normalized std values!'
-            for name in data.sys[name_sys].ref.keys():
-                if data.sys[name_sys].ref[name] == '><':
+            assert hasattr(data.mol[name_mol], 'normg_std'), 'Error: missing normalized std values!'
+            for name in data.mol[name_mol].ref.keys():
+                if data.mol[name_mol].ref[name] == '><':
                     # you can sum since one of the two is zero
-                    dict_lambdas[name_sys][name] = (
-                        dict_lambdas[name_sys][name+' LOWER']/data.sys[name_sys].normg_std[name+' LOWER'])
+                    dict_lambdas[name_mol][name] = (
+                        dict_lambdas[name_mol][name+' LOWER']/data.mol[name_mol].normg_std[name+' LOWER'])
 
-                    dict_lambdas[name_sys][name] += (
-                        dict_lambdas[name_sys][name+' UPPER']/data.sys[name_sys].normg_std[name+' UPPER'])
+                    dict_lambdas[name_mol][name] += (
+                        dict_lambdas[name_mol][name+' UPPER']/data.mol[name_mol].normg_std[name+' UPPER'])
 
-                    del dict_lambdas[name_sys][name+' LOWER'], dict_lambdas[name_sys][name+' UPPER']
+                    del dict_lambdas[name_mol][name+' LOWER'], dict_lambdas[name_mol][name+' UPPER']
                 else:
-                    dict_lambdas[name_sys][name] = dict_lambdas[name_sys][name]/data.sys[name_sys].normg_std[name]
+                    dict_lambdas[name_mol][name] = dict_lambdas[name_mol][name]/data.mol[name_mol].normg_std[name]
         else:
-            for name in data.sys[name_sys].ref.keys():
-                if data.sys[name_sys].ref[name] == '><':
-                    dict_lambdas[name_sys][name] = dict_lambdas[name_sys][name+' LOWER']
-                    + dict_lambdas[name_sys][name+' UPPER']
-                    del dict_lambdas[name_sys][name+' LOWER'], dict_lambdas[name_sys][name+' UPPER']
+            for name in data.mol[name_mol].ref.keys():
+                if data.mol[name_mol].ref[name] == '><':
+                    dict_lambdas[name_mol][name] = dict_lambdas[name_mol][name+' LOWER']
+                    + dict_lambdas[name_mol][name+' UPPER']
+                    del dict_lambdas[name_mol][name+' LOWER'], dict_lambdas[name_mol][name+' UPPER']
 
     return dict_lambdas
 
@@ -937,7 +937,7 @@ def minimizer(
 
     time1 = time.time()
 
-    system_names = original_data._global_.system_names
+    system_names = original_data.properties.system_names
 
     """ copy original_data and act only on the copy, preserving original_data """
 
@@ -953,13 +953,13 @@ def minimizer(
     #     data[k1] = my_new_class
 
     """ normalize observables """
-    for name_sys in system_names:
-        if hasattr(data.sys[name_sys], 'g'):
-            out = normalize_observables(data.sys[name_sys].gexp, data.sys[name_sys].g, data.sys[name_sys].weights)
-            data.sys[name_sys].g = out[0]
-            data.sys[name_sys].gexp = out[1]
-            data.sys[name_sys].normg_mean = out[2]
-            data.sys[name_sys].normg_std = out[3]
+    for name_mol in system_names:
+        if hasattr(data.mol[name_mol], 'g'):
+            out = normalize_observables(data.mol[name_mol].gexp, data.mol[name_mol].g, data.mol[name_mol].weights)
+            data.mol[name_mol].g = out[0]
+            data.mol[name_mol].gexp = out[1]
+            data.mol[name_mol].normg_mean = out[2]
+            data.mol[name_mol].normg_std = out[3]
 
     """ starting point for lambdas """
     if not np.isinf(alpha):
@@ -969,7 +969,7 @@ def minimizer(
         tot_n_exp = 0
 
         for name in system_names:
-            for item in data.sys[name].n_experiments.values():
+            for item in data.mol[name].n_experiments.values():
                 tot_n_exp += item
 
         lambdas = np.zeros(tot_n_exp)
@@ -984,26 +984,26 @@ def minimizer(
     if not np.isinf(alpha):
 
         my_list = []
-        for k in data._global_.system_names:
-            my_list = my_list + list(data.sys[k].ref.values())
+        for k in data.properties.system_names:
+            my_list = my_list + list(data.mol[k].ref.values())
 
         if ('>' in my_list) or ('<' in my_list) or ('><' in my_list):
 
             bounds = {}
 
-            for name_sys in data._global_.system_names:
-                bounds[name_sys] = []
-                for name_type in data.sys[name_sys].n_experiments.keys():
-                    if name_type in data.sys[name_sys].ref.keys():
-                        if data.sys[name_sys].ref[name_type] == '=':
-                            bounds[name_sys] = bounds[name_sys] + [(-np.inf, +np.inf)]*data.sys[name_sys].g[name_type].shape[1]
-                        elif data.sys[name_sys].ref[name_type] == '<':
-                            bounds[name_sys] = bounds[name_sys] + [(0, +np.inf)]*data.sys[name_sys].g[name_type].shape[1]
-                        elif data.sys[name_sys].ref[name_type] == '>':
-                            bounds[name_sys] = bounds[name_sys] + [(-np.inf, 0)]*data.sys[name_sys].g[name_type].shape[1]
-                    elif data.sys[name_sys].ref[name_type[:-6]] == '><':
-                        bounds[name_sys] = bounds[name_sys] + [(-np.inf, 0)]*data.sys[name_sys].g[name_type].shape[1]
-                        # bounds = bounds + [[0,+np.inf]]*data.g[name_sys][name_type+' LOWER'].shape[1]
+            for name_mol in data.properties.system_names:
+                bounds[name_mol] = []
+                for name_type in data.mol[name_mol].n_experiments.keys():
+                    if name_type in data.mol[name_mol].ref.keys():
+                        if data.mol[name_mol].ref[name_type] == '=':
+                            bounds[name_mol] = bounds[name_mol] + [(-np.inf, +np.inf)]*data.mol[name_mol].g[name_type].shape[1]
+                        elif data.mol[name_mol].ref[name_type] == '<':
+                            bounds[name_mol] = bounds[name_mol] + [(0, +np.inf)]*data.mol[name_mol].g[name_type].shape[1]
+                        elif data.mol[name_mol].ref[name_type] == '>':
+                            bounds[name_mol] = bounds[name_mol] + [(-np.inf, 0)]*data.mol[name_mol].g[name_type].shape[1]
+                    elif data.mol[name_mol].ref[name_type[:-6]] == '><':
+                        bounds[name_mol] = bounds[name_mol] + [(-np.inf, 0)]*data.mol[name_mol].g[name_type].shape[1]
+                        # bounds = bounds + [[0,+np.inf]]*data.g[name_mol][name_type+' LOWER'].shape[1]
         else:
             bounds = None
     else:
@@ -1038,11 +1038,11 @@ def minimizer(
         if starting_pars is None:
             pars_ff_fm_0 = []
             if not np.isinf(beta):
-                names_ff_pars = data._global_.names_ff_pars
+                names_ff_pars = data.properties.names_ff_pars
                 pars_ff_fm_0 = pars_ff_fm_0 + list(np.zeros(len(names_ff_pars)))
 
             if not np.isinf(gamma):
-                pars_ff_fm_0 = pars_ff_fm_0 + list(data._global_.forward_coeffs_0)
+                pars_ff_fm_0 = pars_ff_fm_0 + list(data.properties.forward_coeffs_0)
             pars_ff_fm_0 = np.array(pars_ff_fm_0)
         else:
             pars_ff_fm_0 = starting_pars
@@ -1091,9 +1091,9 @@ def minimizer(
     """ use non-normalized data and non-normalized lambdas """
     if not np.isinf(alpha):
         flatten_lambda = []
-        for name_sys in system_names:
+        for name_mol in system_names:
             flatten_lambda = flatten_lambda + list(
-                np.hstack(Result.min_lambdas[name_sys][k] for k in data.sys[name_sys].n_experiments.keys()))
+                np.hstack(Result.min_lambdas[name_mol][k] for k in data.mol[name_mol].n_experiments.keys()))
 
         flatten_lambda = np.array(flatten_lambda)
     else:
@@ -1134,153 +1134,153 @@ class class_test:
     """
     Class for test data set, with similar structure as `data_class`.
     """
-    def __init__(self, data_sys, test_frames_sys, test_obs_sys, if_all_frames, data_train_sys):
+    def __init__(self, data_mol, test_frames_mol, test_obs_mol, if_all_frames, data_train_mol):
 
         # A. split weights
         try:
-            w = data_sys.weights[test_frames_sys]
+            w = data_mol.weights[test_frames_mol]
         except:
-            w = data_sys.weights[list(test_frames_sys)]
+            w = data_mol.weights[list(test_frames_mol)]
         self.logZ = np.log(np.sum(w))
         self.weights = w/np.sum(w)
         self.n_frames = np.shape(w)[0]
 
         # B. split force-field terms
-        if hasattr(data_sys, 'f'):
-            self.ff_correction = data_sys.ff_correction
+        if hasattr(data_mol, 'f'):
+            self.ff_correction = data_mol.ff_correction
             try:
-                self.f = data_sys.f[test_frames_sys, :]
+                self.f = data_mol.f[test_frames_mol, :]
             except:
-                self.f = data_sys.f[list(test_frames_sys), :]
+                self.f = data_mol.f[list(test_frames_mol), :]
 
         # C. split experimental values gexp, normg_mean and normg_std, observables g
 
-        if hasattr(data_sys, 'gexp'):
+        if hasattr(data_mol, 'gexp'):
             self.gexp_new = {}
             self.n_experiments_new = {}
 
-            for name_type in data_sys.gexp.keys():
+            for name_type in data_mol.gexp.keys():
 
                 try:
-                    self.gexp_new[name_type] = data_sys.gexp[name_type][list(test_obs_sys[name_type])]
+                    self.gexp_new[name_type] = data_mol.gexp[name_type][list(test_obs_mol[name_type])]
                 except:
-                    self.gexp_new[name_type] = data_sys.gexp[name_type][test_obs_sys[name_type]]
+                    self.gexp_new[name_type] = data_mol.gexp[name_type][test_obs_mol[name_type]]
 
-                self.n_experiments_new[name_type] = len(test_obs_sys[name_type])
+                self.n_experiments_new[name_type] = len(test_obs_mol[name_type])
 
-        if hasattr(data_sys, 'names'):
+        if hasattr(data_mol, 'names'):
 
             self.names_new = {}
 
-            for name_type in data_sys.names.keys():
-                self.names_new[name_type] = data_sys.names[name_type][list(test_obs_sys[name_type])]
+            for name_type in data_mol.names.keys():
+                self.names_new[name_type] = data_mol.names[name_type][list(test_obs_mol[name_type])]
 
-        if hasattr(data_sys, 'g'):
+        if hasattr(data_mol, 'g'):
 
             self.g_new = {}
             if if_all_frames:
                 self.g_new_old = {}
             self.g = {}
 
-            for name_type in data_sys.g.keys():
+            for name_type in data_mol.g.keys():
 
                 # split g into: train, test1 (non-trained obs, all frames or only non-used ones),
                 # test2 (trained obs, non-used frames)
-                # if not test_obs[name_sys][name_type] == []:
-                self.g_new[name_type] = (data_sys.g[name_type][test_frames_sys, :].T)[test_obs_sys[name_type], :].T
+                # if not test_obs[name_mol][name_type] == []:
+                self.g_new[name_type] = (data_mol.g[name_type][test_frames_mol, :].T)[test_obs_mol[name_type], :].T
 
                 if if_all_frames:  # new observables on trained frames
                     self.g_new_old[name_type] = np.delete(
-                        data_sys.g[name_type], test_frames_sys, axis=0)[:, list(test_obs_sys[name_type])]
+                        data_mol.g[name_type], test_frames_mol, axis=0)[:, list(test_obs_mol[name_type])]
 
-                g3 = np.delete(data_sys.g[name_type], test_obs_sys[name_type], axis=1)
-                self.g[name_type] = g3[test_frames_sys, :]
+                g3 = np.delete(data_mol.g[name_type], test_obs_mol[name_type], axis=1)
+                self.g[name_type] = g3[test_frames_mol, :]
 
-        if hasattr(data_sys, 'forward_qs'):
+        if hasattr(data_mol, 'forward_qs'):
 
             self.forward_qs = {}
 
-            for name_type in data_sys.forward_qs.keys():
-                self.forward_qs[name_type] = data_sys.forward_qs[name_type][list(test_frames_sys), :]
+            for name_type in data_mol.forward_qs.keys():
+                self.forward_qs[name_type] = data_mol.forward_qs[name_type][list(test_frames_mol), :]
 
             if if_all_frames:
-                self.forward_qs_trained = data_train_sys.forward_qs
+                self.forward_qs_trained = data_train_mol.forward_qs
 
-        if hasattr(data_sys, 'forward_model'):
-            self.forward_model = data_sys.forward_model
+        if hasattr(data_mol, 'forward_model'):
+            self.forward_model = data_mol.forward_model
 
-        self.ref = data_sys.ref
-        self.selected_obs = data_train_sys.selected_obs  # same observables as in training
-        self.selected_obs_new = test_obs_sys
+        self.ref = data_mol.ref
+        self.selected_obs = data_train_mol.selected_obs  # same observables as in training
+        self.selected_obs_new = test_obs_mol
 
-        self.gexp = data_train_sys.gexp
-        self.n_experiments = data_train_sys.n_experiments
-        self.temperature = data_sys.temperature
+        self.gexp = data_train_mol.gexp
+        self.n_experiments = data_train_mol.n_experiments
+        self.temperature = data_mol.temperature
 
 
 class class_train:
     """
     Class for training data set, with similar structure as `data_class`.
     """
-    def __init__(self, data_sys, test_frames_sys, test_obs_sys):
+    def __init__(self, data_mol, test_frames_mol, test_obs_mol):
 
         # training observables
         train_obs = {}
-        for s in data_sys.n_experiments.keys():
-            train_obs[s] = [i for i in range(data_sys.n_experiments[s]) if i not in test_obs_sys[s]]
+        for s in data_mol.n_experiments.keys():
+            train_obs[s] = [i for i in range(data_mol.n_experiments[s]) if i not in test_obs_mol[s]]
         self.selected_obs = train_obs
 
         # A. split weights
-        w = np.delete(data_sys.weights, test_frames_sys)
+        w = np.delete(data_mol.weights, test_frames_mol)
         self.logZ = np.log(np.sum(w))
         self.weights = w/np.sum(w)
         self.n_frames = np.shape(w)[0]
 
         # B. split force-field terms
 
-        if hasattr(data_sys, 'f'):
-            self.ff_correction = data_sys.ff_correction
-            self.f = np.delete(data_sys.f, test_frames_sys, axis=0)
+        if hasattr(data_mol, 'f'):
+            self.ff_correction = data_mol.ff_correction
+            self.f = np.delete(data_mol.f, test_frames_mol, axis=0)
 
         # C. split experimental values gexp, normg_mean and normg_std, observables g
 
-        if hasattr(data_sys, 'gexp'):
+        if hasattr(data_mol, 'gexp'):
 
             self.gexp = {}
             self.n_experiments = {}
 
-            for name_type in data_sys.gexp.keys():
-                self.gexp[name_type] = np.delete(data_sys.gexp[name_type], test_obs_sys[name_type], axis=0)
+            for name_type in data_mol.gexp.keys():
+                self.gexp[name_type] = np.delete(data_mol.gexp[name_type], test_obs_mol[name_type], axis=0)
                 self.n_experiments[name_type] = np.shape(self.gexp[name_type])[0]
 
-        if hasattr(data_sys, 'names'):
+        if hasattr(data_mol, 'names'):
 
             self.names = {}
 
-            for name_type in data_sys.names.keys():
-                self.names[name_type] = data_sys.names[name_type][train_obs[name_type]]
+            for name_type in data_mol.names.keys():
+                self.names[name_type] = data_mol.names[name_type][train_obs[name_type]]
 
-        if hasattr(data_sys, 'g'):
+        if hasattr(data_mol, 'g'):
 
             self.g = {}
 
-            for name_type in data_sys.g.keys():
-                train_g = np.delete(data_sys.g[name_type], test_frames_sys, axis=0)
-                self.g[name_type] = np.delete(train_g, test_obs_sys[name_type], axis=1)
+            for name_type in data_mol.g.keys():
+                train_g = np.delete(data_mol.g[name_type], test_frames_mol, axis=0)
+                self.g[name_type] = np.delete(train_g, test_obs_mol[name_type], axis=1)
 
-        if hasattr(data_sys, 'forward_qs'):
+        if hasattr(data_mol, 'forward_qs'):
 
             self.forward_qs = {}
 
-            for name_type in data_sys.forward_qs.keys():
-                self.forward_qs[name_type] = np.delete(data_sys.forward_qs[name_type], test_frames_sys, axis=0)
+            for name_type in data_mol.forward_qs.keys():
+                self.forward_qs[name_type] = np.delete(data_mol.forward_qs[name_type], test_frames_mol, axis=0)
 
-        if hasattr(data_sys, 'forward_model'):
-            self.forward_model = data_sys.forward_model
+        if hasattr(data_mol, 'forward_model'):
+            self.forward_model = data_mol.forward_model
 
-        self.ref = data_sys.ref
+        self.ref = data_mol.ref
 
-        self.temperature = data_sys.temperature
+        self.temperature = data_mol.temperature
 
 
 def select_traintest(
@@ -1328,7 +1328,7 @@ def select_traintest(
     """
     # PART 1: IF NONE, SELECT TEST OBSERVABLES AND TEST FRAMES
 
-    system_names = data._global_.system_names
+    system_names = data.properties.system_names
     rng = None
 
     if (test_frames is None) or (test_obs is None):
@@ -1367,17 +1367,17 @@ def select_traintest(
         test_frames = {}
         test_replicas = {}
 
-        for name_sys in system_names:
+        for name_mol in system_names:
 
-            if (replica_infos is not None) and (hasattr(replica_infos, name_sys)) and ('n_temp_replica' in replica_infos[name_sys].keys()):
+            if (replica_infos is not None) and (hasattr(replica_infos, name_mol)) and ('n_temp_replica' in replica_infos[name_mol].keys()):
                 # if you have demuxed trajectories, select replicas and the corresponding frames
                 # pos_replcias has the indices corresponding to the different replicas
 
                 path = replica_infos['global']['path_directory']
                 stride = replica_infos['global']['stride']
-                n_temp = replica_infos[name_sys]['n_temp_replica']
+                n_temp = replica_infos[name_mol]['n_temp_replica']
 
-                replica_temp = np.load('%s/%s/replica_temp.npy' % (path, name_sys))[::stride]
+                replica_temp = np.load('%s/%s/replica_temp.npy' % (path, name_mol))[::stride]
 
                 n_replicas = len(replica_temp.T)
                 replica_index = replica_temp.argsort(axis=1)
@@ -1387,20 +1387,20 @@ def select_traintest(
                     pos_replicas.append(np.argwhere(replica_index[:, n_temp] == i)[:, 0])
 
                 n_replicas_test = np.int16(np.round(test_frames_size*n_replicas))
-                test_replicas[name_sys] = np.sort(rng.choice(n_replicas, n_replicas_test, replace=False))
+                test_replicas[name_mol] = np.sort(rng.choice(n_replicas, n_replicas_test, replace=False))
 
                 fin = np.array([])
                 for i in range(n_replicas_test):
-                    fin = np.concatenate((fin, pos_replicas[test_replicas[name_sys][i]]))
-                test_frames[name_sys] = np.array(fin).astype(int)
+                    fin = np.concatenate((fin, pos_replicas[test_replicas[name_mol][i]]))
+                test_frames[name_mol] = np.array(fin).astype(int)
                 del fin
 
             else:
 
-                n_frames_test = np.int16(np.round(test_frames_size*data.sys[name_sys].n_frames))
-                test_frames[name_sys] = np.sort(rng.choice(data.sys[name_sys].n_frames, n_frames_test, replace=False))
+                n_frames_test = np.int16(np.round(test_frames_size*data.mol[name_mol].n_frames))
+                test_frames[name_mol] = np.sort(rng.choice(data.mol[name_mol].n_frames, n_frames_test, replace=False))
                 # except:
-                # test_frames[name_sys] = random.choice(key, data.sys[name_sys].n_frames,(n_frames_test[name_sys],),
+                # test_frames[name_mol] = random.choice(key, data.mol[name_mol].n_frames,(n_frames_test[name_mol],),
                 # replace = False)
 
         if test_replicas == {}:
@@ -1414,33 +1414,33 @@ def select_traintest(
         test_obs = {}
 
         """ here you select with the same fraction for each type of observable"""
-        # for name_sys in data.weights.keys():
-        #     n_obs_test[name_sys] = {}
-        #     test_obs[name_sys] = {}
+        # for name_mol in data.weights.keys():
+        #     n_obs_test[name_mol] = {}
+        #     test_obs[name_mol] = {}
 
-        #     for name_type in data.g[name_sys].keys():
-        #         n_obs_test[name_sys][name_type] = np.int16(np.round(test_obs_size*data.n_experiments[name_sys][name_type]))
-        #         test_obs[name_sys][name_type] = np.sort(rng.choice(data.n_experiments[name_sys][name_type],
-        #           n_obs_test[name_sys][name_type],replace = False))
+        #     for name_type in data.g[name_mol].keys():
+        #         n_obs_test[name_mol][name_type] = np.int16(np.round(test_obs_size*data.n_experiments[name_mol][name_type]))
+        #         test_obs[name_mol][name_type] = np.sort(rng.choice(data.n_experiments[name_mol][name_type],
+        #           n_obs_test[name_mol][name_type],replace = False))
 
         """ here instead you select the same fraction for each system and then take the corresponding observables
         (in this way, no issue for types of observables with only 1 observable """
-        for name_sys in system_names:
+        for name_mol in system_names:
 
-            n_obs_test[name_sys] = {}
-            test_obs[name_sys] = {}
+            n_obs_test[name_mol] = {}
+            test_obs[name_mol] = {}
 
-            n = np.sum(np.array(list(data.sys[name_sys].n_experiments.values())))
+            n = np.sum(np.array(list(data.mol[name_mol].n_experiments.values())))
             vec = np.sort(rng.choice(n, np.int16(np.round(n*test_obs_size)), replace=False))
             # except: vec = np.sort(jax.random.choice(key, n, (np.int16(np.round(n*test_obs_size)),), replace = False))
 
             sum = 0
-            for name_type in data.sys[name_sys].n_experiments.keys():
+            for name_type in data.mol[name_mol].n_experiments.keys():
 
-                test_obs[name_sys][name_type] = vec[(vec >= sum) & (vec < sum + data.sys[name_sys].n_experiments[name_type])] - sum
-                n_obs_test[name_sys][name_type] = len(test_obs[name_sys][name_type])
+                test_obs[name_mol][name_type] = vec[(vec >= sum) & (vec < sum + data.mol[name_mol].n_experiments[name_type])] - sum
+                n_obs_test[name_mol][name_type] = len(test_obs[name_mol][name_type])
 
-                sum += data.sys[name_sys].n_experiments[name_type]
+                sum += data.mol[name_mol].n_experiments[name_type]
 
         del sum, n, vec
 
@@ -1452,28 +1452,28 @@ def select_traintest(
     
     class my_data_traintest:
         def __init__(self, data):
-            self._global_ = data._global_
-            self.sys = {}
+            self.properties = data.properties
+            self.mol = {}
 
     data_train = my_data_traintest(data)
     data_test = my_data_traintest(data)
 
     # for over different systems:
 
-    for name_sys in system_names:
+    for name_mol in system_names:
 
-        data_train.sys[name_sys] = class_train(data.sys[name_sys], test_frames[name_sys], test_obs[name_sys])
-        data_test.sys[name_sys] = class_test(
-            data.sys[name_sys], test_frames[name_sys], test_obs[name_sys], if_all_frames, data_train.sys[name_sys])
+        data_train.mol[name_mol] = class_train(data.mol[name_mol], test_frames[name_mol], test_obs[name_mol])
+        data_test.mol[name_mol] = class_test(
+            data.mol[name_mol], test_frames[name_mol], test_obs[name_mol], if_all_frames, data_train.mol[name_mol])
 
     # """ if some type of observables are not included in test observables, delete them to avoid empty items """
-    # for name_sys in system_names:
-    #     for name_type in test_obs[name_sys].keys():
-    #         if len(test_obs[name_sys][name_type]) == 0:
-    #             del data_test.sys[name_sys].gexp_new[name_type]
-    #             if name_type in data_test.sys[name_sys].g_new.keys():
-    #                 del data_test.sys[name_sys].g_new[name_type]
-    #                 if if_all_frames: del data_test.sys[name_sys].g_new_old[name_type]
+    # for name_mol in system_names:
+    #     for name_type in test_obs[name_mol].keys():
+    #         if len(test_obs[name_mol][name_type]) == 0:
+    #             del data_test.mol[name_mol].gexp_new[name_type]
+    #             if name_type in data_test.mol[name_mol].g_new.keys():
+    #                 del data_test.mol[name_mol].g_new[name_type]
+    #                 if if_all_frames: del data_test.mol[name_mol].g_new_old[name_type]
 
     for s1 in test_obs.keys():
         my_list1 = []
@@ -1482,20 +1482,20 @@ def select_traintest(
         for s2 in test_obs[s1].keys():
             if len(test_obs[s1][s2]) == 0:
                 my_list1.append(s2)
-            elif len(test_obs[s1][s2]) == data.sys[s1].n_experiments[s2]:
+            elif len(test_obs[s1][s2]) == data.mol[s1].n_experiments[s2]:
                 my_list2.append(s2)
 
         for s2 in my_list1:
             """ no test observables of this kind """
-            del data_test.sys[s1].gexp_new[s2], data_test.sys[s1].g_new[s2], data_test.sys[s1].n_experiments_new[s2]
-            del data_test.sys[s1].selected_obs_new[s2]  # , data_test[s1].names_new[s2]
+            del data_test.mol[s1].gexp_new[s2], data_test.mol[s1].g_new[s2], data_test.mol[s1].n_experiments_new[s2]
+            del data_test.mol[s1].selected_obs_new[s2]  # , data_test[s1].names_new[s2]
 
         for s2 in my_list2:
             """ no training observables of this kind"""
-            del data_test.sys[s1].gexp[s2], data_test.sys[s1].g[s2], data_test.sys[s1].n_experiments[s2]
-            del data_test.sys[s1].selected_obs[s2]  # , data_test[s1].names[s2]
-            del data_train.sys[s1].gexp[s2], data_train.sys[s1].g[s2], data_train.sys[s1].n_experiments[s2]
-            del data_train.sys[s1].selected_obs[s2]  # , data_train[s1].names[s2]
+            del data_test.mol[s1].gexp[s2], data_test.mol[s1].g[s2], data_test.mol[s1].n_experiments[s2]
+            del data_test.mol[s1].selected_obs[s2]  # , data_test[s1].names[s2]
+            del data_train.mol[s1].gexp[s2], data_train.mol[s1].g[s2], data_train.mol[s1].n_experiments[s2]
+            del data_train.mol[s1].selected_obs[s2]  # , data_train[s1].names[s2]
 
         for s2 in my_list1:
             test_obs[s1][s2] = np.int64(np.array([]))
@@ -1551,11 +1551,11 @@ def validation(
     assert beta >= 0, 'beta must be >= 0'
     assert gamma >= 0, 'gamma must be >= 0'
 
-    system_names = data_test._global_.system_names
+    system_names = data_test.properties.system_names
     names_ff_pars = []
 
     if not np.isinf(beta):
-        names_ff_pars = data_test._global_.names_ff_pars
+        names_ff_pars = data_test.properties.names_ff_pars
 
     pars_fm = None  # to avoid error in pylint
     if not np.isinf(gamma):
@@ -1586,95 +1586,95 @@ def validation(
 
     g = {}
 
-    for name_sys in system_names:
+    for name_mol in system_names:
 
         if np.isinf(gamma):
-            if hasattr(data_test.sys[name_sys], 'g_new'):
-                g[name_sys] = copy.deepcopy(data_test.sys[name_sys].g_new)
+            if hasattr(data_test.mol[name_mol], 'g_new'):
+                g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new)
         else:
-            if hasattr(data_test.sys[name_sys], 'g_new'):
-                g[name_sys] = copy.deepcopy(data_test.sys[name_sys].g_new)
+            if hasattr(data_test.mol[name_mol], 'g_new'):
+                g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new)
             else:
-                g[name_sys] = {}
+                g[name_mol] = {}
 
-            if hasattr(data_test.sys[name_sys], 'selected_obs'):
-                selected_obs = data_test.sys[name_sys].selected_obs_new
+            if hasattr(data_test.mol[name_mol], 'selected_obs'):
+                selected_obs = data_test.mol[name_mol].selected_obs_new
             else:
                 selected_obs = None
 
-            fm_observables = data_test.sys[name_sys].forward_model(pars_fm, data_test.sys[name_sys].forward_qs, selected_obs)
+            fm_observables = data_test.mol[name_mol].forward_model(pars_fm, data_test.mol[name_mol].forward_qs, selected_obs)
 
             for name in fm_observables.keys():
 
-                g[name_sys][name] = fm_observables[name]
-                if hasattr(data_test.sys[name_sys], 'normg_mean'):
-                    g[name_sys][name] = (
-                        g[name_sys][name]-data_test.sys[name_sys].normg_mean[name])/data_test.sys[name_sys].normg_std[name]
+                g[name_mol][name] = fm_observables[name]
+                if hasattr(data_test.mol[name_mol], 'normg_mean'):
+                    g[name_mol][name] = (
+                        g[name_mol][name]-data_test.mol[name_mol].normg_mean[name])/data_test.mol[name_mol].normg_std[name]
 
             del fm_observables
 
-    for name_sys in system_names:
+    for name_mol in system_names:
 
-        args = (data_test.sys[name_sys].ref, Validation_values.weights_new[name_sys], g[name_sys], data_test.sys[name_sys].gexp_new)
+        args = (data_test.mol[name_mol].ref, Validation_values.weights_new[name_mol], g[name_mol], data_test.mol[name_mol].gexp_new)
         out = compute_chi2(*args)
 
-        Validation_values.avg_new_obs[name_sys] = out[0]
+        Validation_values.avg_new_obs[name_mol] = out[0]
 
-        if not hasattr(data_test.sys[name_sys], 'forward_qs_trained'):
-            Validation_values.chi2_new_obs[name_sys] = out[1]
+        if not hasattr(data_test.mol[name_mol], 'forward_qs_trained'):
+            Validation_values.chi2_new_obs[name_mol] = out[1]
 
     # then, if you want to include also trained frames for validating observables:
 
-    if hasattr(data_test.sys[system_names[0]], 'forward_qs_trained') and (data_train is not None):  # forward qs on trained frames
+    if hasattr(data_test.mol[system_names[0]], 'forward_qs_trained') and (data_train is not None):  # forward qs on trained frames
 
         Details_train = loss_function(pars_ff_fm, data_train, regularization, alpha, beta, gamma, lambdas, if_save=True)
 
         g = {}
 
-        for name_sys in system_names:
+        for name_mol in system_names:
             if np.isinf(gamma):
-                if hasattr(data_test.sys[name_sys], 'g_new_old'):
-                    g[name_sys] = copy.deepcopy(data_test.sys[name_sys].g_new_old)
+                if hasattr(data_test.mol[name_mol], 'g_new_old'):
+                    g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new_old)
             else:
-                if hasattr(data_test.sys[name_sys], 'g_new_old'):
-                    g[name_sys] = copy.deepcopy(data_test.sys[name_sys].g_new_old)
+                if hasattr(data_test.mol[name_mol], 'g_new_old'):
+                    g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new_old)
                 else:
-                    g[name_sys] = {}
+                    g[name_mol] = {}
 
-                if hasattr(data_test.sys[name_sys], 'selected_obs'):
-                    selected_obs = data_test.sys[name_sys].selected_obs
+                if hasattr(data_test.mol[name_mol], 'selected_obs'):
+                    selected_obs = data_test.mol[name_mol].selected_obs
                 else:
                     selected_obs = None
 
-                fm_observables = data_test.sys[name_sys].forward_model(pars_fm, data_test.sys[name_sys].forward_qs, selected_obs)
+                fm_observables = data_test.mol[name_mol].forward_model(pars_fm, data_test.mol[name_mol].forward_qs, selected_obs)
 
                 for name in fm_observables.keys():
 
-                    g[name_sys][name] = fm_observables[name]
-                    if hasattr(data_test.sys[name_sys], 'normg_mean'):
-                        g[name_sys][name] = (
-                            g[name_sys][name]-data_test.sys[name_sys].normg_mean[name])/data_test.sys[name_sys].normg_std[name]
+                    g[name_mol][name] = fm_observables[name]
+                    if hasattr(data_test.mol[name_mol], 'normg_mean'):
+                        g[name_mol][name] = (
+                            g[name_mol][name]-data_test.mol[name_mol].normg_mean[name])/data_test.mol[name_mol].normg_std[name]
 
                 del fm_observables
 
-            Validation_values.chi2_new_obs[name_sys] = {}
+            Validation_values.chi2_new_obs[name_mol] = {}
 
-            args = (data_test.sys[name_sys].ref, Details_train.weights_new[name_sys], g[name_sys], data_test.sys[name_sys].gexp_new)
+            args = (data_test.mol[name_mol].ref, Details_train.weights_new[name_mol], g[name_mol], data_test.mol[name_mol].gexp_new)
             out = compute_chi2(*args)[0]
 
-            log_fact_Z = data_test.sys[name_sys].logZ + Validation_values.logZ_new[name_sys]
-            - Details_train.logZ_new[name_sys] - data_train.sys[name_sys].logZ
+            log_fact_Z = data_test.mol[name_mol].logZ + Validation_values.logZ_new[name_mol]
+            - Details_train.logZ_new[name_mol] - data_train.mol[name_mol].logZ
 
             if hasattr(Validation_values, 'logZ_P'):
-                log_fact_Z += Validation_values.logZ_P_test[name_sys] - Details_train.logZ_P[name_sys]
+                log_fact_Z += Validation_values.logZ_P_test[name_mol] - Details_train.logZ_P[name_mol]
 
-            for name_type in data_test.sys[name_sys].n_experiments.keys():
-                Validation_values.avg_new_obs[name_sys][name_type] = 1/(1+np.exp(log_fact_Z))*out[name_type]
-                + 1/(1+np.exp(-log_fact_Z))*Validation_values.avg_new_obs[name_sys][name_type]
+            for name_type in data_test.mol[name_mol].n_experiments.keys():
+                Validation_values.avg_new_obs[name_mol][name_type] = 1/(1+np.exp(log_fact_Z))*out[name_type]
+                + 1/(1+np.exp(-log_fact_Z))*Validation_values.avg_new_obs[name_mol][name_type]
 
-                Validation_values.chi2_new_obs[name_sys][name_type] = np.sum(((
-                    Validation_values.avg_new_obs[name_sys][name_type]
-                    - data_test.sys[name_sys].gexp_new[name_type][:, 0])/data_test.sys[name_sys].gexp_new[name_type][:, 1])**2)
+                Validation_values.chi2_new_obs[name_mol][name_type] = np.sum(((
+                    Validation_values.avg_new_obs[name_mol][name_type]
+                    - data_test.mol[name_mol].gexp_new[name_type][:, 0])/data_test.mol[name_mol].gexp_new[name_type][:, 1])**2)
 
     if which_return == 'chi2 test':
         tot_chi2 = 0

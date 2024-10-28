@@ -1,5 +1,5 @@
 """
-Tools n. 1: data_loading.
+Tools n. 1: `data_loading`.
 It loads data into the `data` object.
 """
 
@@ -21,24 +21,24 @@ def check_and_skip(data, *, stride=1):
 
     - weights are normalized;
 
-    - it appends observables computed through forward models (if any) to `data.sys[name_sys].g`;
+    - it appends observables computed through forward models (if any) to `data.mol[name_sys].g`;
     
-    - if ` hasattr(data.sys[name_sys], 'selected_obs')`: it removes non-selected observables from `data.sys[name_sys].forward_qs`;
+    - if ` hasattr(data.mol[name_sys], 'selected_obs')`: it removes non-selected observables from `data.mol[name_sys].forward_qs`;
     
     - select frames with given `stride`;
     
-    - count n. experiments and n. frames (`data.sys[name_sys].n_frames` and `data.sys[name_sys].n_experiments`)
+    - count n. experiments and n. frames (`data.mol[name_sys].n_frames` and `data.mol[name_sys].n_experiments`)
     and check corresponding matching.
     """
 
     # output_data = {}
-    # output_data['global'] = data._global_
+    # output_data['global'] = data.properties
 
-    system_names = data._global_.system_names
+    system_names = data.properties.system_names
 
     for name_sys in system_names:
 
-        my_data = data.sys[name_sys]
+        my_data = data.mol[name_sys]
 
         """ 1. compute observables from .forward_qs through forward model and include them in .g """
 
@@ -55,7 +55,7 @@ def check_and_skip(data, *, stride=1):
             else:
                 selected_obs = None
 
-            out = my_data.forward_model(np.array(data._global_.forward_coeffs_0), my_data.forward_qs, selected_obs)
+            out = my_data.forward_model(np.array(data.properties.forward_coeffs_0), my_data.forward_qs, selected_obs)
 
             if type(out) is tuple:
                 out = out[0]
@@ -69,13 +69,13 @@ def check_and_skip(data, *, stride=1):
 
         if not hasattr(my_data, 'g'):
 
-            my_list = [x2 for x in list(data._global_.cycle_names.values()) for x2 in x]
+            my_list = [x2 for x in list(data.properties.cycle_names.values()) for x2 in x]
                 
             assert hasattr(data, 'cycle'), 'error: missing MD data for system' + name_sys
             assert name_sys in my_list, 'error: missing MD data for system' + name_sys
 
-            for s2 in data._global_.cycle_names:
-                if name_sys in data._global_.cycle_names[s2]:
+            for s2 in data.properties.cycle_names:
+                if name_sys in data.properties.cycle_names[s2]:
                     assert hasattr(data.cycle[s2], 'gexp_DDG'), 'error: missing gexp DDG for cycle' % s2
 
         """ 3. count number of systems and number of experimental data; check: same number of frames """
@@ -145,18 +145,18 @@ def check_and_skip(data, *, stride=1):
         my_data.n_frames = np.shape(my_data.weights)[0]
 
         # output_data[name_sys] = my_data
-        data.sys[name_sys] = my_data
+        data.mol[name_sys] = my_data
         del my_data
 
-    # if hasattr(data._global_, 'cycle_names'):
-    #     for name in data._global_.cycle_names:
+    # if hasattr(data.properties, 'cycle_names'):
+    #     for name in data.properties.cycle_names:
             # output_data[name] = data[name]
 
     return data  # output_data
 
 # %% A2. load_data
 
-class data_global_class:
+class datapropertiesclass:
     """Global data, common to all the investigated molecular systems.
     
     Parameters
@@ -214,7 +214,7 @@ class data_global_class:
         tot = 0
 
         for k in self.system_names:
-            for item in data.sys[k].n_experiments.values():
+            for item in data.mol[k].n_experiments.values():
                 tot += item
         return tot
 
@@ -464,11 +464,11 @@ class my_data:
         if not path_directory[-1] == '/': path_directory += '/'
         
         # global data
-        self._global_ = data_global_class(infos['global'], path_directory)
+        self.properties = datapropertiesclass(infos['global'], path_directory)
 
         # data for each molecular system
 
-        self.sys = {}
+        self.mol = {}
 
         for name_sys in system_names:
 
@@ -479,7 +479,7 @@ class my_data:
             else:
                 info = infos['global']
     
-            self.sys[name_sys] = data_class(info, path_directory, name_sys)
+            self.mol[name_sys] = data_class(info, path_directory, name_sys)
 
         # data for thermodynamic cycles (alchemical calculations)
 
@@ -491,9 +491,9 @@ class my_data:
                 for s in ['MD', 'MS', 'AD', 'AS']:
                     key = name + '_' + s
                     if key in logZs.index:
-                        self.sys[key].logZ = logZs.loc[key][1]
+                        self.mol[key].logZ = logZs.loc[key][1]
                     else:
-                        self.sys[key].logZ = 0.0
+                        self.mol[key].logZ = 0.0
 
             self.cycle = {}
 
@@ -511,7 +511,7 @@ class my_data:
 def load_data(infos, *, stride=1):
     """
     This tool loads data from specified directory as indicated by the user in `infos`
-    to a dictionary `data` of classes, which includes `data._global_` (global properties) and `data[system_name]`;
+    to a dictionary `data` of classes, which includes `data.properties` (global properties) and `data[system_name]`;
     for alchemical calculations, there is also `data[cycle_name]`.
     """
 
@@ -530,18 +530,18 @@ def load_data(infos, *, stride=1):
     #             tot += item
     #     return tot
 
-    # data._global_.system_names = system_names
-    # data._global_.tot_n_experiments = tot_n_experiments
+    # data.properties.system_names = system_names
+    # data.properties.tot_n_experiments = tot_n_experiments
 
-    # if hasattr(data._global_, 'ff_correction') and (data._global_.ff_correction == 'linear'):
+    # if hasattr(data.properties, 'ff_correction') and (data.properties.ff_correction == 'linear'):
     #     list_names_ff_pars = []
-    #     for k in data._global_.system_names:
+    #     for k in data.properties.system_names:
     #         if hasattr(data[k], 'f'):
     #             [list_names_ff_pars.append(x) for x in data[k].f.keys() if x not in list_names_ff_pars]
-    #     data._global_.names_ff_pars = list_names_ff_pars
+    #     data.properties.names_ff_pars = list_names_ff_pars
 
     # elif 'names_ff_pars' in infos['global'].keys():
-    #     data._global_.names_ff_pars = infos['global']['names_ff_pars']
+    #     data.properties.names_ff_pars = infos['global']['names_ff_pars']
 
     print('done')
 
