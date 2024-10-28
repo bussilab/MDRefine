@@ -6,17 +6,38 @@ class my_testcase(unittest.TestCase):
     def assertEqualObjs(self, obj1, obj2):
         
         import numpy as np
-        
+        import jax.numpy as jnp
+
+        print(obj1, obj2)
+
         if isinstance(obj1, dict) and isinstance(obj2, dict):
-            self.assertDictEqual(obj1, obj2)
-        elif isinstance(obj1, np.ndarray) and isinstance(obj2, np.ndarray):
-            self.assertAlmostEqual(np.sum((obj1 - obj2)**2), 0)
-        elif isinstance(obj1, bool) and isinstance(obj2, bool):
-            self.assertTrue(obj1 == obj2)
-        elif isinstance(obj1, float) and isinstance(obj2, float):
-            self.assertAlmostEqual(obj1, obj2)
+            self.assertSetEqual(set(obj1.keys()), set(obj2.keys()))
+            for k in obj1.keys():
+                self.assertEqualObjs(obj1[k], obj2[k])
+        
+        elif isinstance(obj1, list) and isinstance(obj2, list):
+            self.assertEqual(len(obj1), len(obj2))
+            for i in range(len(obj1)):
+                self.assertEqualObjs(obj1[i], obj2[i])
+        
+        elif isinstance(obj1, tuple) and isinstance(obj2, tuple):
+            self.assertEqual(len(obj1), len(obj2))
+            for i in range(len(obj1)):
+                self.assertEqualObjs(obj1[i], obj2[i])
+        
         else:
-            self.assertEqual(obj1, obj2)
+            if (isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray)) and (
+                    isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray)):
+                self.assertAlmostEqual(np.sum((obj1 - obj2)**2), 0)
+            elif isinstance(obj1, bool) and isinstance(obj2, bool):
+                self.assertTrue(obj1 == obj2)
+            elif isinstance(obj1, float) and isinstance(obj2, float):
+                self.assertAlmostEqual(obj1, obj2)
+            elif isinstance(obj1, int) and isinstance(obj2, int):
+                self.assertEqual(obj1, obj2)
+            else:
+                print('WARNING: obj1 is ', type(obj1), 'while obj2 is ', type(obj2))
+                self.assertEqual(obj1, obj2)
 
 class Test(my_testcase):
     def test_compute_new_weights_and_DKL(self):
@@ -116,13 +137,7 @@ class Test(my_testcase):
         out = compute_DeltaDeltaG_terms(data, logZ_P={'A1_MS': 1., 'A1_MD': 1.5})
         out_test = ({'A1_MS': 255.7655459570046, 'A1_MD': 256.2379948027602}, {'A1': 135.84140982133923}, 67.92070491066961)
 
-        for i in [0, 1]:
-            self.assertEqual(out_test[i].keys(), out[i].keys())
-
-            for k in out_test[i].keys():
-                self.assertAlmostEqual(out_test[i][k], out[i][k])
-
-        self.assertAlmostEqual(out_test[2], out[2])
+        self.assertEqualObjs(out_test, out)
 
     def test_compute_chi2(self):
 
@@ -190,22 +205,12 @@ class Test(my_testcase):
             'uNOEs': np.array([0., 0.])},
             np.array(11.21211034))
 
-        for i in range(3):
-            self.assertSetEqual(set(out_test[i].keys()), set(out[i].keys()))
-            for k in out_test[0].keys():
-                self.assertAlmostEqual(np.sum((out_test[i][k] - out[i][k])**2), 0)
-        
-        self.assertAlmostEqual(out_test[3], out[3])
+        self.assertEqualObjs(out_test, out)
 
         # if_separate = True (no change)
         out = compute_chi2(data.mol['AAAA'].ref, data.mol['AAAA'].weights, data.mol['AAAA'].g, data.mol['AAAA'].gexp, True)
-        
-        for i in range(3):
-            self.assertSetEqual(set(out_test[i].keys()), set(out[i].keys()))
-            for k in out_test[0].keys():
-                self.assertAlmostEqual(np.sum((out_test[i][k] - out[i][k])**2), 0)
-        
-        self.assertAlmostEqual(out_test[3], out[3])
+
+        self.assertEqualObjs(out_test, out)
 
     def test_gamma_function(self):
         
@@ -265,7 +270,7 @@ class Test(my_testcase):
 
         out = gamma_function(lambdas, flatten_g, flatten_gexp, data.mol['AAAA'].weights, alpha, True)
 
-        out_test = ((6.27231308),
+        out_test = (np.array([(6.27231308)]),
             np.array([ 3.34791024e-01,  3.63254555e+00,  6.39012045e+00,  1.29484769e+00,
                     4.05246153e+00,  1.92475534e+00, -8.35131574e-06,  5.11595544e-05,
                     1.48046374e-04,  7.04939569e-05]),
@@ -274,9 +279,7 @@ class Test(my_testcase):
                         7.82813097e-04, 3.06092488e-05, 1.01479652e-05,
                         1.75379015e-06]))
 
-        self.assertAlmostEqual(out[0], out_test[0])
-        self.assertAlmostEqual(np.sum((out[1] - out_test[1])**2), 0)
-        self.assertAlmostEqual(np.sum((out[2] - out_test[2])**2), 0)
+        self.assertEqualObjs(out_test, out)
 
     # def test_loss_function(self):
     
@@ -332,30 +335,9 @@ class Test(my_testcase):
 
         test_result = pickle.load(open('tests/DATA_test/result1.pkl', 'rb'))
 
-        self.assertAlmostEqual(result.loss, test_result['loss']) # float
+        del test_result['time'], result.time
 
-        for k in result.min_lambdas.keys():
-            self.assertAlmostEqual(result.abs_difference[k] - test_result['abs_difference'][k], 0)
-
-            for k2 in result.min_lambdas[k].keys():
-                self.assertAlmostEqual(np.sum((result.min_lambdas[k][k2] - test_result['min_lambdas'][k][k2])**2), 0) # array
-                self.assertAlmostEqual(np.sum((result.av_g[k][k2] - test_result['av_g'][k][k2])**2), 0) # array
-
-            self.assertAlmostEqual(result.minis[k].fun, test_result['minis'][k].fun) # float
-            self.assertAlmostEqual(np.sum((result.minis[k].jac - test_result['minis'][k].jac)**2), 0) # array
-            self.assertTrue(result.minis[k].success == test_result['minis'][k].success) # boolean
-            self.assertAlmostEqual(np.sum((result.minis[k].x - test_result['minis'][k].x)**2), 0) # array
-            self.assertAlmostEqual(np.sum((result.weights_new[k] - test_result['weights_new'][k])**2), 0) # array
-
-        self.assertDictEqual(result.D_KL_alpha, test_result['D_KL_alpha']) # dict
-        
-        # self.assertDictEqual(result.chi2, test_result['chi2']) # dict
-        self.assertEqualObjs(result.chi2, test_result['chi2'])
-
-        # self.assertDictEqual(result.logZ_new, test_result['logZ_new']) # dict
-        self.assertEqualObjs(result.logZ_new, test_result['logZ_new'])
-
-
+        self.assertEqualObjs(vars(result), test_result)
 
 if __name__ == "__main__":
     unittest.main()
