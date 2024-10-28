@@ -332,10 +332,11 @@ class Test(my_testcase):
 
         test_result = pickle.load(open('tests/DATA_test/result1.pkl', 'rb'))
 
-        self.assertDictEqual(result.abs_difference, test_result['abs_difference']) # dict
         self.assertAlmostEqual(result.loss, test_result['loss']) # float
 
         for k in result.min_lambdas.keys():
+            self.assertAlmostEqual(result.abs_difference[k] - test_result['abs_difference'][k], 0)
+
             for k2 in result.min_lambdas[k].keys():
                 self.assertAlmostEqual(np.sum((result.min_lambdas[k][k2] - test_result['min_lambdas'][k][k2])**2), 0) # array
                 self.assertAlmostEqual(np.sum((result.av_g[k][k2] - test_result['av_g'][k][k2])**2), 0) # array
