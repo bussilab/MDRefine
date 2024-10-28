@@ -1093,7 +1093,7 @@ def minimizer(
         flatten_lambda = []
         for name_mol in system_names:
             flatten_lambda = flatten_lambda + list(
-                numpy.hstack(Result.min_lambdas[name_mol][k] for k in data.mol[name_mol].n_experiments.keys()))
+                np.hstack([Result.min_lambdas[name_mol][k] for k in data.mol[name_mol].n_experiments.keys()]))
 
         flatten_lambda = np.array(flatten_lambda)
     else:
