@@ -2,7 +2,23 @@ import unittest
 import MDRefine
 from MDRefine import compute_new_weights, compute_chi2, compute_D_KL, l2_regularization
 
-class Test(unittest.TestCase):
+class my_testcase(unittest.TestCase):
+    def assertEqualObjs(self, obj1, obj2):
+        
+        import numpy as np
+        
+        if isinstance(obj1, dict) and isinstance(obj2, dict):
+            self.assertDictEqual(obj1, obj2)
+        elif isinstance(obj1, np.ndarray) and isinstance(obj2, np.ndarray):
+            self.assertAlmostEqual(np.sum((obj1 - obj2)**2), 0)
+        elif isinstance(obj1, bool) and isinstance(obj2, bool):
+            self.assertTrue(obj1 == obj2)
+        elif isinstance(obj1, float) and isinstance(obj2, float):
+            self.assertAlmostEqual(obj1, obj2)
+        else:
+            self.assertEqual(obj1, obj2)
+
+class Test(my_testcase):
     def test_compute_new_weights_and_DKL(self):
         # import jax.numpy as np
         import numpy as np
@@ -155,7 +171,7 @@ class Test(unittest.TestCase):
 
         data = load_data(infos)
 
-        out = compute_chi2(data.sys['AAAA'].ref, data.sys['AAAA'].weights, data.sys['AAAA'].g, data.sys['AAAA'].gexp)
+        out = compute_chi2(data.mol['AAAA'].ref, data.mol['AAAA'].weights, data.mol['AAAA'].g, data.mol['AAAA'].gexp)
 
         out_test = ({'backbone1_gamma_3J': np.array([2.2820567 , 2.37008063]),
             'backbone2_beta_epsilon_3J': np.array([6.39268088, 3.86126331]),
@@ -182,7 +198,7 @@ class Test(unittest.TestCase):
         self.assertAlmostEqual(out_test[3], out[3])
 
         # if_separate = True (no change)
-        out = compute_chi2(data.sys['AAAA'].ref, data.sys['AAAA'].weights, data.sys['AAAA'].g, data.sys['AAAA'].gexp, True)
+        out = compute_chi2(data.mol['AAAA'].ref, data.mol['AAAA'].weights, data.mol['AAAA'].g, data.mol['AAAA'].gexp, True)
         
         for i in range(3):
             self.assertSetEqual(set(out_test[i].keys()), set(out[i].keys()))
@@ -238,8 +254,8 @@ class Test(unittest.TestCase):
 
         data = load_data(infos)
 
-        flatten_g = np.hstack([data.sys['AAAA'].g[k] for k in data.sys['AAAA'].n_experiments.keys()])
-        flatten_gexp = np.vstack([data.sys['AAAA'].gexp[k] for k in data.sys['AAAA'].n_experiments.keys()])
+        flatten_g = np.hstack([data.mol['AAAA'].g[k] for k in data.mol['AAAA'].n_experiments.keys()])
+        flatten_gexp = np.vstack([data.mol['AAAA'].gexp[k] for k in data.mol['AAAA'].n_experiments.keys()])
 
         alpha = 1.5
 
@@ -247,7 +263,7 @@ class Test(unittest.TestCase):
         lambdas = np.array([0.02276649, 0.92055914, 0.54435632, 0.28184011, 0.75414035,
             0.75551687, 0.47772936, 0.8749338 , 0.7059772 , 0.96640172])
 
-        out = gamma_function(lambdas, flatten_g, flatten_gexp, data.sys['AAAA'].weights, alpha, True)
+        out = gamma_function(lambdas, flatten_g, flatten_gexp, data.mol['AAAA'].weights, alpha, True)
 
         out_test = ((6.27231308),
             np.array([ 3.34791024e-01,  3.63254555e+00,  6.39012045e+00,  1.29484769e+00,
@@ -263,7 +279,82 @@ class Test(unittest.TestCase):
         self.assertAlmostEqual(np.sum((out[2] - out_test[2])**2), 0)
 
     # def test_loss_function(self):
+    
+    def test_minimizer(self):
+    
+        import pickle
+        import jax.numpy as jnp
+        import numpy as np
+        from MDRefine import load_data, minimizer
+
+        infos = {'global': {
+            'path_directory': 'tests/DATA_test',
+            'system_names': ['AAAA', 'CAAU'],
+            'g_exp': ['backbone1_gamma_3J', 'backbone2_beta_epsilon_3J', 'sugar_3J', 'NOEs'],# , ('uNOEs', '<')],
+            'forward_qs': ['backbone1_gamma', 'backbone2_beta_epsilon','sugar'],
+            'obs': ['NOEs'],#, 'uNOEs'],
+            'forward_coeffs': 'original_fm_coeffs'}}
+
+        def forward_model_fun(fm_coeffs, forward_qs, selected_obs=None):
+
+            # 1. compute the cosine (which is the quantity you need in the forward model;
+            # you could do this just once before loading data)
+            forward_qs_cos = {}
+
+            for type_name in forward_qs.keys():
+                forward_qs_cos[type_name] = jnp.cos(forward_qs[type_name])
+
+            # if you have selected_obs, compute only the corresponding observables
+            if selected_obs is not None:
+                for type_name in forward_qs.keys():
+                    forward_qs_cos[type_name] = forward_qs_cos[type_name][:,selected_obs[type_name+'_3J']]
+
+            # 2. compute observables (forward_qs_out) through forward model
+            forward_qs_out = {
+                'backbone1_gamma_3J': fm_coeffs[0]*forward_qs_cos['backbone1_gamma']**2 + fm_coeffs[1]*forward_qs_cos['backbone1_gamma'] + fm_coeffs[2],
+                'backbone2_beta_epsilon_3J': fm_coeffs[3]*forward_qs_cos['backbone2_beta_epsilon']**2 + fm_coeffs[4]*forward_qs_cos['backbone2_beta_epsilon'] + fm_coeffs[5],
+                'sugar_3J': fm_coeffs[6]*forward_qs_cos['sugar']**2 + fm_coeffs[7]*forward_qs_cos['sugar'] + fm_coeffs[8] }
+
+            return forward_qs_out
+
+        infos['global']['forward_model'] = forward_model_fun
+        infos['global']['names_ff_pars'] = ['sin alpha', 'cos alpha']
+
+        def ff_correction(pars, f):
+            out = jnp.matmul(pars, (f[:, [0, 6]] + f[:, [1, 7]] + f[:, [2, 8]]).T)
+            return out
+
+        infos['global']['ff_correction'] = ff_correction
+
+        data = load_data(infos)
+
+        result = minimizer(data, alpha=1.5)
+
+        test_result = pickle.load(open('tests/DATA_test/result1.pkl', 'rb'))
+
+        self.assertDictEqual(result.abs_difference, test_result['abs_difference']) # dict
+        self.assertAlmostEqual(result.loss, test_result['loss']) # float
+
+        for k in result.min_lambdas.keys():
+            for k2 in result.min_lambdas[k].keys():
+                self.assertAlmostEqual(np.sum((result.min_lambdas[k][k2] - test_result['min_lambdas'][k][k2])**2), 0) # array
+                self.assertAlmostEqual(np.sum((result.av_g[k][k2] - test_result['av_g'][k][k2])**2), 0) # array
+
+            self.assertAlmostEqual(result.minis[k].fun, test_result['minis'][k].fun) # float
+            self.assertAlmostEqual(np.sum((result.minis[k].jac - test_result['minis'][k].jac)**2), 0) # array
+            self.assertTrue(result.minis[k].success == test_result['minis'][k].success) # boolean
+            self.assertAlmostEqual(np.sum((result.minis[k].x - test_result['minis'][k].x)**2), 0) # array
+            self.assertAlmostEqual(np.sum((result.weights_new[k] - test_result['weights_new'][k])**2), 0) # array
+
+        self.assertDictEqual(result.D_KL_alpha, test_result['D_KL_alpha']) # dict
         
+        # self.assertDictEqual(result.chi2, test_result['chi2']) # dict
+        self.assertEqualObjs(result.chi2, test_result['chi2'])
+
+        # self.assertDictEqual(result.logZ_new, test_result['logZ_new']) # dict
+        self.assertEqualObjs(result.logZ_new, test_result['logZ_new'])
+
+
 
 if __name__ == "__main__":
     unittest.main()
