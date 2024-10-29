@@ -32,7 +32,7 @@ class my_testcase(unittest.TestCase):
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
             elif isinstance(obj1, float) and isinstance(obj2, float):
-                self.assertAlmostEqual(obj1, obj2)
+                self.assertTrue((obj1 - obj2)**2 < lower_bound)
             elif isinstance(obj1, int) and isinstance(obj2, int):
                 self.assertEqual(obj1, obj2)
             else:
