@@ -112,7 +112,7 @@ class Test(my_testcase):
 
             self.assertEqualObjs(my_vec0, my_vec1)
 
-        for s in ['hyper_search']:#, 'min_lambdas', 'result']:
+        for s in ['hyper_search', 'min_lambdas', 'result']:
 
             if s == 'result': usecols = lambda x: x != 'time'
             else: usecols = None
@@ -122,10 +122,10 @@ class Test(my_testcase):
 
             self.assertEqualObjs(my_vec0[0, 0], my_vec1[0, 0])
         
-        # my_df0 = pandas.read_csv(path_list[0] + 'input', index_col=0, usecols=usecols)
-        # my_df1 = pandas.read_csv(path_list[1] + 'input', index_col=0, usecols=usecols)
+        my_df0 = pandas.read_csv(path_list[0] + 'input', index_col=0, usecols=usecols)
+        my_df1 = pandas.read_csv(path_list[1] + 'input', index_col=0, usecols=usecols)
 
-        # self.assertEqualObjs(list(my_df0.columns), list(my_df1.columns))
+        self.assertEqualObjs(list(my_df0.columns), list(my_df1.columns))
 
         # for s in list(my_df0.columns):
         #     self.assertEqualObjs(my_df0[s][0], my_df1[s][0])
