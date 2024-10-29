@@ -1209,7 +1209,8 @@ class class_test:
         if hasattr(data_mol, 'forward_model'):
             self.forward_model = data_mol.forward_model
 
-        self.ref = data_mol.ref
+        self.ref = copy.deepcopy(data_mol.ref)
+        self.ref_all = copy.deepcopy(data_mol.ref)
         self.selected_obs = copy.deepcopy(data_train_mol.selected_obs)  # same observables as in training
         self.selected_obs_new = test_obs_mol
 
@@ -1495,9 +1496,12 @@ def select_traintest(
         for s2 in my_list2:
             """ no training observables of this kind"""
             del data_test.mol[s1].gexp[s2], data_test.mol[s1].g[s2], data_test.mol[s1].n_experiments[s2]
-            del data_test.mol[s1].selected_obs[s2]  # , data_test[s1].names[s2]
-            del data_train.mol[s1].g[s2], data_train.mol[s1].ref[s2], data_train.mol[s1].names[s2]
-            del data_train.mol[s1].gexp[s2], data_train.mol[s1].n_experiments[s2]
+            del data_test.mol[s1].ref[s2]  # , data_test.mol[s1].names[s2]
+            
+            # del data_test.mol[s1].selected_obs[s2]  # , data_test[s1].names[s2]
+
+            # del data_train.mol[s1].g[s2], data_train.mol[s1].ref[s2], data_train.mol[s1].names[s2]
+            # del data_train.mol[s1].gexp[s2], data_train.mol[s1].n_experiments[s2]
 
         for s2 in my_list1:
             test_obs[s1][s2] = np.int64(np.array([]))
@@ -1599,7 +1603,7 @@ def validation(
             else:
                 g[name_mol] = {}
 
-            if hasattr(data_test.mol[name_mol], 'selected_obs'):
+            if hasattr(data_test.mol[name_mol], 'selected_obs_new'):
                 selected_obs = data_test.mol[name_mol].selected_obs_new
             else:
                 selected_obs = None
@@ -1617,7 +1621,7 @@ def validation(
 
     for name_mol in system_names:
 
-        args = (data_test.mol[name_mol].ref, Validation_values.weights_new[name_mol], g[name_mol], data_test.mol[name_mol].gexp_new)
+        args = (data_test.mol[name_mol].ref_all, Validation_values.weights_new[name_mol], g[name_mol], data_test.mol[name_mol].gexp_new)
         out = compute_chi2(*args)
 
         Validation_values.avg_new_obs[name_mol] = out[0]
