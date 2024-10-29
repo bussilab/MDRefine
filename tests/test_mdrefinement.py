@@ -32,8 +32,16 @@ class my_testcase(unittest.TestCase):
 
                 if if_relative == False:
                     self.assertTrue(np.sum((obj1 - obj2)**2) < lower_bound)
+                
                 else:
-                    self.assertTrue(np.sum((obj1 - obj2)**2)/np.sum(obj1**2) < lower_bound)
+
+                    wh = np.argwhere(obj1 == 0)
+                    if wh.shape[0] != 0:
+                        self.assertTrue(np.sum((obj1[obj1 == 0] - obj2[obj1 == 0])**2) < lower_bound)
+
+                    wh = np.argwhere(obj1 != 0)
+                    if wh.shape[0] != 0:
+                        self.assertTrue(np.sum((obj2[obj1 != 0] - obj1[obj1 != 0])**2/obj1[obj1 != 0]) < lower_bound)
 
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
@@ -123,7 +131,7 @@ class Test(my_testcase):
             if s == 'result': usecols = lambda x: x != 'time'
             else: usecols = None
 
-            if s == 'min_lambdas': if_relative = True
+            if s in ['min_lambdas' or 'result']: if_relative = True
             else: if_relative = False
 
             my_vec0 = np.array(pandas.read_csv(path_list[0] + s, index_col=0, usecols=usecols))
