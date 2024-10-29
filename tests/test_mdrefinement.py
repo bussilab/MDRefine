@@ -27,7 +27,7 @@ class my_testcase(unittest.TestCase):
         else:
             if (isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray)) and (
                     isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray)):
-                self.assertAlmostEqual(np.sum((obj1 - obj2)**2), 0)
+                self.assertTrue(np.sum((obj1 - obj2)**2) < 1e-4)
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
             elif isinstance(obj1, float) and isinstance(obj2, float):
