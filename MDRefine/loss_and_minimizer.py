@@ -1138,9 +1138,12 @@ class class_test:
 
         # A. split weights
         try:
-            w = data_mol.weights[test_frames_mol]
+            w = data_mol.weights[tuple(test_frames_mol)]
         except:
+            # try: w = data_mol.weights[test_frames_mol]
+            #except:
             w = data_mol.weights[list(test_frames_mol)]
+        
         self.logZ = np.log(np.sum(w))
         self.weights = w/np.sum(w)
         self.n_frames = np.shape(w)[0]
