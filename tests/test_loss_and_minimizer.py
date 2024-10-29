@@ -40,6 +40,7 @@ class my_testcase(unittest.TestCase):
                 self.assertEqual(obj1, obj2)
 
 class Test(my_testcase):
+
     def test_compute_new_weights_and_DKL(self):
         # import jax.numpy as np
         import numpy as np
@@ -281,8 +282,6 @@ class Test(my_testcase):
 
         self.assertEqualObjs(out_test, out)
 
-    # def test_loss_function(self):
-    
     def test_minimizer(self):
     
         import pickle
@@ -290,13 +289,9 @@ class Test(my_testcase):
         import numpy as np
         from MDRefine import load_data, minimizer
 
-        infos = {'global': {
-            'path_directory': 'tests/DATA_test',
-            'system_names': ['AAAA', 'CAAU'],
-            'g_exp': ['backbone1_gamma_3J', 'backbone2_beta_epsilon_3J', 'sugar_3J', 'NOEs'],# , ('uNOEs', '<')],
-            'forward_qs': ['backbone1_gamma', 'backbone2_beta_epsilon','sugar'],
-            'obs': ['NOEs'],#, 'uNOEs'],
-            'forward_coeffs': 'original_fm_coeffs'}}
+        # define infos
+
+        import jax.numpy as jnp
 
         def forward_model_fun(fm_coeffs, forward_qs, selected_obs=None):
 
@@ -320,14 +315,19 @@ class Test(my_testcase):
 
             return forward_qs_out
 
-        infos['global']['forward_model'] = forward_model_fun
-        infos['global']['names_ff_pars'] = ['sin alpha', 'cos alpha']
-
         def ff_correction(pars, f):
             out = jnp.matmul(pars, (f[:, [0, 6]] + f[:, [1, 7]] + f[:, [2, 8]]).T)
             return out
 
-        infos['global']['ff_correction'] = ff_correction
+        infos = {'global': {
+            'path_directory': 'tests/DATA_test',
+            'system_names': ['AAAA', 'CAAU'],
+            'g_exp': ['backbone1_gamma_3J', 'backbone2_beta_epsilon_3J', 'sugar_3J', 'NOEs'],# , ('uNOEs', '<')],
+            'forward_qs': ['backbone1_gamma', 'backbone2_beta_epsilon','sugar'],
+            'obs': ['NOEs'],#, 'uNOEs'],
+            'forward_coeffs': 'original_fm_coeffs', 'forward_model': forward_model_fun,
+            'names_ff_pars': ['sin alpha', 'cos alpha'], 'ff_correction': ff_correction}}
+
 
         data = load_data(infos)
 

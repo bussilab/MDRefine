@@ -4,7 +4,6 @@ import unittest
 from MDRefine import load_data
 
 class Test(unittest.TestCase):
-
     def test_load_data(self):
 
         import pickle
