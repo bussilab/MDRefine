@@ -2,7 +2,7 @@ import unittest
 import MDRefine
 
 class my_testcase(unittest.TestCase):
-    def assertEqualObjs(self, obj1, obj2, lower_bound=1e-4):
+    def assertEqualObjs(self, obj1, obj2, lower_bound = 1e-4, if_relative = False):
         
         import numpy as np
         import jax.numpy as jnp
@@ -27,8 +27,14 @@ class my_testcase(unittest.TestCase):
         else:
             if (isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray)) and (
                     isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray)):
+
                 print('value: ', np.sum((obj1 - obj2)**2))
-                self.assertTrue(np.sum((obj1 - obj2)**2) < lower_bound)
+
+                if if_relative == False:
+                    self.assertTrue(np.sum((obj1 - obj2)**2) < lower_bound)
+                else:
+                    self.assertTrue(np.sum((obj1 - obj2)**2)/np.sum(obj1**2) < lower_bound)
+
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
             elif isinstance(obj1, float) and isinstance(obj2, float):
@@ -117,10 +123,13 @@ class Test(my_testcase):
             if s == 'result': usecols = lambda x: x != 'time'
             else: usecols = None
 
+            if s == 'min_lambdas': if_relative = True
+            else: if_relative = False
+
             my_vec0 = np.array(pandas.read_csv(path_list[0] + s, index_col=0, usecols=usecols))
             my_vec1 = np.array(pandas.read_csv(path_list[1] + s, index_col=0, usecols=usecols))
 
-            self.assertEqualObjs(my_vec0, my_vec1)
+            self.assertEqualObjs(my_vec0, my_vec1, if_relative=if_relative)
         
         my_df0 = pandas.read_csv(path_list[0] + 'input', index_col=0, usecols=usecols)
         my_df1 = pandas.read_csv(path_list[1] + 'input', index_col=0, usecols=usecols)
