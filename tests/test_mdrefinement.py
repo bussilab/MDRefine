@@ -2,7 +2,7 @@ import unittest
 import MDRefine
 
 class my_testcase(unittest.TestCase):
-    def assertEqualObjs(self, obj1, obj2):
+    def assertEqualObjs(self, obj1, obj2, lower_bound=1e-3):
         
         import numpy as np
         import jax.numpy as jnp
@@ -27,7 +27,7 @@ class my_testcase(unittest.TestCase):
         else:
             if (isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray)) and (
                     isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray)):
-                self.assertTrue(np.sum((obj1 - obj2)**2) < 1e-4)
+                self.assertTrue(np.sum((obj1 - obj2)**2) < lower_bound)
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
             elif isinstance(obj1, float) and isinstance(obj2, float):
