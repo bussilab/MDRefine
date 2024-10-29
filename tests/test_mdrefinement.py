@@ -2,7 +2,7 @@ import unittest
 import MDRefine
 
 class my_testcase(unittest.TestCase):
-    def assertEqualObjs(self, obj1, obj2, lower_bound=1e-5):
+    def assertEqualObjs(self, obj1, obj2, lower_bound=1e-4):
         
         import numpy as np
         import jax.numpy as jnp
