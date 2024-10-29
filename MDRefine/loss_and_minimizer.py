@@ -1140,9 +1140,10 @@ class class_test:
         try:
             w = data_mol.weights[tuple(test_frames_mol)]
         except:
-            # try: w = data_mol.weights[test_frames_mol]
-            #except:
-            w = data_mol.weights[list(test_frames_mol)]
+            try:
+                w = data_mol.weights[test_frames_mol]
+            except:
+                w = data_mol.weights[list(test_frames_mol)]
         
         self.logZ = np.log(np.sum(w))
         self.weights = w/np.sum(w)
