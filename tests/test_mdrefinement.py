@@ -135,7 +135,7 @@ class Test(my_testcase):
             if s == 'result': usecols = lambda x: x != 'time'
             else: usecols = None
 
-            if s in ['min_lambdas' or 'result']: 
+            if s in ['min_lambdas', 'result']: 
                 if_relative = True
                 tol = 1e-2
             else:
