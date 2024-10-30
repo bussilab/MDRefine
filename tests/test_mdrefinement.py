@@ -132,7 +132,7 @@ class Test(my_testcase):
 
         for s in ['hyper_search', 'min_lambdas', 'result']:
 
-            if s == 'result': usecols = lambda x: x not in ['time', 'norm gradient']
+            if s == 'result': usecols = lambda x: x not in ['time', 'norm gradient', 'success']
             else: usecols = None
 
             if s in ['min_lambdas', 'result']: 
