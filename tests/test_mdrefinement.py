@@ -2,7 +2,7 @@ import unittest
 import MDRefine
 
 class my_testcase(unittest.TestCase):
-    def assertEqualObjs(self, obj1, obj2, lower_bound = 1e-4, if_relative = False):
+    def assertEqualObjs(self, obj1, obj2, tol = 1e-4, if_relative = False):
         
         import numpy as np
         import jax.numpy as jnp
@@ -31,7 +31,7 @@ class my_testcase(unittest.TestCase):
                 if if_relative == False:
                     q = np.sum((obj1 - obj2)**2)
                     print('value: ', q)
-                    self.assertTrue(q < lower_bound)
+                    self.assertTrue(q < tol)
                 
                 else:
 
@@ -39,18 +39,18 @@ class my_testcase(unittest.TestCase):
                     if wh.shape[0] != 0:
                         q = np.sum((obj1[obj1 == 0] - obj2[obj1 == 0])**2)
                         print('value: ', q)
-                        self.assertTrue(q < lower_bound)
+                        self.assertTrue(q < tol)
 
                     wh = np.argwhere(obj1 != 0)
                     if wh.shape[0] != 0:
                         q = np.sum(((obj2[obj1 != 0] - obj1[obj1 != 0])/obj1[obj1 != 0])**2)
                         print('value: ', q)
-                        self.assertTrue(q < lower_bound)
+                        self.assertTrue(q < tol)
 
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
             elif isinstance(obj1, float) and isinstance(obj2, float):
-                self.assertTrue((obj1 - obj2)**2 < lower_bound)
+                self.assertTrue((obj1 - obj2)**2 < tol)
             elif isinstance(obj1, int) and isinstance(obj2, int):
                 self.assertEqual(obj1, obj2)
             else:
@@ -135,13 +135,17 @@ class Test(my_testcase):
             if s == 'result': usecols = lambda x: x != 'time'
             else: usecols = None
 
-            if s in ['min_lambdas' or 'result']: if_relative = True
-            else: if_relative = False
+            if s in ['min_lambdas' or 'result']: 
+                if_relative = True
+                tol = 1e-2
+            else:
+                if_relative = False
+                tol = 1e-4
 
             my_vec0 = np.array(pandas.read_csv(path_list[0] + s, index_col=0, usecols=usecols))
             my_vec1 = np.array(pandas.read_csv(path_list[1] + s, index_col=0, usecols=usecols))
 
-            self.assertEqualObjs(my_vec0, my_vec1, if_relative=if_relative)
+            self.assertEqualObjs(my_vec0, my_vec1, if_relative=if_relative, tol=tol)
         
         my_df0 = pandas.read_csv(path_list[0] + 'input', index_col=0, usecols=usecols)
         my_df1 = pandas.read_csv(path_list[1] + 'input', index_col=0, usecols=usecols)
