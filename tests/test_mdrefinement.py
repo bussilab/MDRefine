@@ -28,20 +28,24 @@ class my_testcase(unittest.TestCase):
             if (isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray)) and (
                     isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray)):
 
-                print('value: ', np.sum((obj1 - obj2)**2))
-
                 if if_relative == False:
-                    self.assertTrue(np.sum((obj1 - obj2)**2) < lower_bound)
+                    q = np.sum((obj1 - obj2)**2)
+                    print('value: ', q)
+                    self.assertTrue(q < lower_bound)
                 
                 else:
 
                     wh = np.argwhere(obj1 == 0)
                     if wh.shape[0] != 0:
-                        self.assertTrue(np.sum((obj1[obj1 == 0] - obj2[obj1 == 0])**2) < lower_bound)
+                        q = np.sum((obj1[obj1 == 0] - obj2[obj1 == 0])**2)
+                        print('value: ', q)
+                        self.assertTrue(q < lower_bound)
 
                     wh = np.argwhere(obj1 != 0)
                     if wh.shape[0] != 0:
-                        self.assertTrue(np.sum((obj2[obj1 != 0] - obj1[obj1 != 0])**2/obj1[obj1 != 0]) < lower_bound)
+                        q = np.sum(((obj2[obj1 != 0] - obj1[obj1 != 0])/obj1[obj1 != 0])**2)
+                        print('value: ', q)
+                        self.assertTrue(q < lower_bound)
 
             elif isinstance(obj1, bool) and isinstance(obj2, bool):
                 self.assertTrue(obj1 == obj2)
