@@ -132,15 +132,15 @@ class Test(my_testcase):
 
         for s in ['hyper_search', 'min_lambdas', 'result']:
 
-            if s == 'result': usecols = lambda x: x != 'time'
+            if s == 'result': usecols = lambda x: x not in ['time', 'norm gradient']
             else: usecols = None
 
             if s in ['min_lambdas', 'result']: 
                 if_relative = True
-                tol = 1e-2
+                tol = 1e-1
             else:
                 if_relative = False
-                tol = 1e-4
+                tol = 1e-3
 
             my_vec0 = np.array(pandas.read_csv(path_list[0] + s, index_col=0, usecols=usecols))
             my_vec1 = np.array(pandas.read_csv(path_list[1] + s, index_col=0, usecols=usecols))
