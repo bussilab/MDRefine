@@ -132,6 +132,7 @@ class Test(my_testcase):
 
         for s in ['hyper_search', 'min_lambdas', 'result']:
 
+            # relax equalities because of small numerical variations for different Python versions
             if s == 'result': usecols = lambda x: x not in ['time', 'norm gradient', 'success']
             else: usecols = None
 
