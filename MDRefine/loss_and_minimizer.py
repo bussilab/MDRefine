@@ -120,7 +120,7 @@ def normalize_observables(gexp, g, weights=None):
     ----------
     gexp, g : dicts
         Dictionaries corresponding to `data.mol[name_mol].gexp` and `data.mol[name_mol].g`.
-        
+    
     weights : array-like
         Numpy 1-dimensional array, by default `None` (namely, equal weight for each frame).
     --------
@@ -255,8 +255,8 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
         Dictionary of experimental values specific for the given molecular system (coherently with `g`).
 
     if_separate: bool
-        Boolean variable, True if you are distinguishing between LOWER and UPPER bounds
-        (`name_type + ' LOWER'` or `name_type + ' UPPER'`), needed for minimizations with double bounds.
+        Boolean variable, True if you are distinguishing between LOWER and UPPER bounds (`name_type + ' LOWER'`
+        or `name_type + ' UPPER'`), needed for minimizations with double bounds.
     --------
 
     Returns
@@ -349,8 +349,8 @@ def compute_DeltaDeltaG_terms(data, logZ_P):
         `data.mol[s]` has attributes `temperature` (of the system) and `logZ`.
         
     logZ_P : dict
-        Dictionary for logarithm of the partition function `Z_P`, namely, average value of `exp(-V_phi(x)/temperature)` over the original ensemble;
-        its keys are the selected `system_names`.
+        Dictionary for logarithm of the partition function `Z_P`, namely, average value of `exp(-V_phi(x)/temperature)`
+        over the original ensemble; its keys are the selected `system_names`.
     --------
 
     Returns
@@ -1317,8 +1317,8 @@ def select_traintest(
     replica_infos : dict
         Dictionary of information used to select frames based on continuous trajectories ("demuxing"), by default `None` (just randomly select frames).
         It includes: `n_temp_replica`, `path_directory`, `stride`. If not `None`, `select_traintest` will read `replica_temp.npy` files
-        with shape `(n_frames, n_replicas)` containing numbers from 0 to `n_replicas - 1` which indicate corresponding
-        temperatures (for each replica index in `axis=1`).
+        with shape `(n_frames, n_replicas)` containing numbers from 0 to `n_replicas - 1` which indicate corresponding temperatures (for each replica
+        index in `axis=1`).
     --------
 
     Returns
