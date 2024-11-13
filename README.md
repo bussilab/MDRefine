@@ -8,7 +8,7 @@ A package to perform refinement of MD simulation trajectories. Documentation can
 To install package and dependencies with pip (version from PyPI):
 
 ```
-pip install bussilab
+pip install MDRefine
 ```
 
 You can install the development version by cloning the repository and, from its root directory, type:
