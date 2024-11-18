@@ -117,7 +117,7 @@ class Test(my_testcase):
         
         my_string = 'results'
 
-        MDRefinement(infos, regularization=regularization, starting_alpha=1, starting_beta=1, starting_gamma=1, results_folder_name='tests/DATA_test/' + my_string)
+        MDRefinement(infos, regularization=regularization, starting_alpha=1, starting_beta=1, starting_gamma=1, results_folder_name='tests/DATA_test/' + my_string, n_parallel_jobs=1)
         
         path_list = sorted(['tests/DATA_test/' + s + '/' for s in os.listdir('tests/DATA_test/') if s[:7] == my_string])
 
@@ -154,7 +154,7 @@ class Test(my_testcase):
         self.assertEqualObjs(list(my_df0.columns), list(my_df1.columns))
 
         for s in list(my_df0.columns):
-            self.assertEqualObjs(my_df0[s][0], my_df1[s][0])
+            self.assertEqualObjs(my_df0.loc[s].iloc[0], my_df1.loc[s].iloc[0])
 
         ### os.rmdir(path_list[1])  # it works only for empty directories
 
