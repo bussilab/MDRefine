@@ -154,7 +154,7 @@ class Test(my_testcase):
         self.assertEqualObjs(list(my_df0.columns), list(my_df1.columns))
 
         for s in list(my_df0.columns):
-            self.assertEqualObjs(my_df0.loc[s].iloc[0], my_df1.loc[s].iloc[0])
+            self.assertEqualObjs(my_df0[s].iloc[0], my_df1[s].iloc[0])
 
         ### os.rmdir(path_list[1])  # it works only for empty directories
 
