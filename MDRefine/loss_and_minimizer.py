@@ -1449,6 +1449,16 @@ def select_traintest(
 
         del sum, n, vec
 
+        # check that some observables have been selected
+
+        flat = []
+
+        for s in test_obs.keys():
+            for s2 in test_obs[s].keys():
+                flat.extend(test_obs[s][s2])
+
+        assert not flat == [], 'Error: no test observables have been selected'
+
     # PART 2: GIVEN test_frames and test_obs, RETURN data_test AND data_train
     # train, test1 ('non-trained' obs, all or 'non-used' frames), test2 ('trained' obs, 'non-used' frames)
 
