@@ -11,8 +11,10 @@ class my_testcase(unittest.TestCase):
 
         if isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray):
             if obj1.shape == (1,): obj1 = obj1[0]
+            elif obj1.shape == (): obj1 = np.array([obj1])[0]
         if isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray):
             if obj2.shape == (1,): obj2 = obj2[0]
+            elif obj2.shape == (): obj2 = np.array([obj2])[0]
 
         if isinstance(obj1, dict) and isinstance(obj2, dict):
             self.assertSetEqual(set(obj1.keys()), set(obj2.keys()))
