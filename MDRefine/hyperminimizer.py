@@ -294,6 +294,8 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
             pars_ff_fm, lambdas, data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
             which_return='chi2 test')
 
+    assert tot_chi2, 'error in compute_chi2_tot' + which_set
+
     return tot_chi2
 
 # %% D3. put_together
@@ -728,6 +730,7 @@ def hyper_minimizer(
         out = select_traintest(data, random_state=seed, replica_infos=replica_infos)
         test_obs[seed] = out[2]
         test_frames[seed] = out[3]
+        # here you could check to not have repeated choices
 
     """ derivatives """
 

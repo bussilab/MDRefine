@@ -22,7 +22,7 @@ from .loss_and_minimizer import minimizer
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
-        random_states = 5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
+        random_states = 5, which_set: str = 'test', gtol: float = 0.5, ftol: float = 0.05,
         results_folder_name: str = 'results', n_parallel_jobs: int = None):
     """
     This is the main tool of the package: it loads data, searches for the optimal hyperparameters and minimizes the loss function on the whole data set
@@ -73,65 +73,66 @@ def MDRefinement(
     data = load_data(infos, stride=stride)
 
     # compute tot. n. of observables: if it is 1, then do just minimizer, otherwise do cross validation
-    tot = 0
+    # No: you can do cross validation also for 1 observable, in this case force which_set to 'test',
+    # namely, do cross validation on frames
 
-    for s in data.mol.keys():
-        for s2 in data.mol[s].n_experiments.keys():
-            tot += data.mol[s].n_experiments[s2]
+    tot = data.properties.tot_n_experiments(data)
+    
+    if tot == 1:
+        print('only one observable, so perform cross validation on frames')
+        which_set = 'validation'
 
-    if not (tot == 1):
+    print('\nsearch for optimal hyperparameters ...')
 
-        print('\nsearch for optimal hyperparameters ...')
+    mini = hyper_minimizer(
+        data, starting_alpha, starting_beta, starting_gamma, regularization,
+        random_states, infos, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs)
 
-        mini = hyper_minimizer(
-            data, starting_alpha, starting_beta, starting_gamma, regularization,
-            random_states, infos, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs)
+    optimal_log10_hyperpars = mini.x
 
-        optimal_log10_hyperpars = mini.x
-
-        optimal_hyperpars = {}
-        i = 0
-        s = ''
-        if not np.isinf(starting_alpha):
-            alpha = 10**optimal_log10_hyperpars[i]
-            optimal_hyperpars['alpha'] = alpha
-            s = s + 'alpha: ' + str(alpha) + ' '
-            i += 1
-        else:
-            alpha = starting_alpha
-        if not np.isinf(starting_beta):
-            beta = 10**optimal_log10_hyperpars[i]
-            optimal_hyperpars['beta'] = beta
-            s = s + 'beta: ' + str(beta) + ' '
-            i += 1
-        else:
-            beta = starting_beta
-        if not np.isinf(starting_gamma):
-            gamma = 10**optimal_log10_hyperpars[i]
-            optimal_hyperpars['gamma'] = gamma
-            s = s + 'gamma: ' + str(gamma)
-            # i += 1
-        else:
-            gamma = starting_gamma
-
-        print('\noptimal hyperparameters: ' + s)
-        print('\nrefinement with optimal hyperparameters...')  # on the full data set')
-
+    optimal_hyperpars = {}
+    i = 0
+    s = ''
+    if not np.isinf(starting_alpha):
+        alpha = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['alpha'] = alpha
+        s = s + 'alpha: ' + str(alpha) + ' '
+        i += 1
     else:
-        print('Just one experimental observable, so cross-validation is not possible. Proceed with plain Ensemble Refinement at alpha = 1')
-        # in principle, you should distinguish if alchemical calculations or not
-        alpha = 1
-        beta = +np.inf
-        gamma = +np.inf
+        alpha = starting_alpha
+    if not np.isinf(starting_beta):
+        beta = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['beta'] = beta
+        s = s + 'beta: ' + str(beta) + ' '
+        i += 1
+    else:
+        beta = starting_beta
+    if not np.isinf(starting_gamma):
+        gamma = 10**optimal_log10_hyperpars[i]
+        optimal_hyperpars['gamma'] = gamma
+        s = s + 'gamma: ' + str(gamma)
+        # i += 1
+    else:
+        gamma = starting_gamma
+
+    print('\noptimal hyperparameters: ' + s)
+    print('\nrefinement with optimal hyperparameters...')  # on the full data set')
+
+    # else:
+    #     print('Just one experimental observable, so cross-validation is not possible. Proceed with plain Ensemble Refinement at alpha = 1')
+    #     # in principle, you should distinguish if alchemical calculations or not
+    #     alpha = 1
+    #     beta = +np.inf
+    #     gamma = +np.inf
 
     # # for the minimization with optimal hyper-parameters use full data set
     # data = load_data(infos)
 
     Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma)
 
-    if not (tot == 1):
-        Result.optimal_hyperpars = optimal_hyperpars
-        Result.hyper_minimization = mini
+    # if not (tot == 1):
+    #     Result.optimal_hyperpars = optimal_hyperpars
+    #     Result.hyper_minimization = mini
 
     print('\ndone')
 

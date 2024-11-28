@@ -77,16 +77,16 @@ def gamma_function(lambdas: numpy.ndarray, g: numpy.ndarray, gexp: numpy.ndarray
     Parameters
     ----------
     
-    lambdas : array_like
+    lambdas : 1-D array-like
         Numpy 1-dimensional array of length N, where `lambdas[j]` is the lambda value for the j-th observable.
     
-    g : array_like
+    g : 2-D array-like
         Numpy 2-dimensional array (M x N); `g[i,j]` is the j-th observable computed in the i-th frame.
     
-    gexp : array_like
+    gexp : 2-D array-like
         Numpy 2-dimensional array (N x 2); `gexp[j,0]` is the experimental value of the j-th observable, `gexp[j,1]` is the associated experimental uncertainty.
     
-    weights : array_like
+    weights : 1-D array-like
         Numpy 1-dimensional array of length M; `w[i]` is the weight of the i-th frame (possibly non-normalized).
     
     alpha : float
@@ -121,7 +121,7 @@ def normalize_observables(gexp, g, weights=None):
     gexp, g : dicts
         Dictionaries corresponding to `data.mol[name_mol].gexp` and `data.mol[name_mol].g`.
     
-    weights : array-like
+    weights : 1-D array-like
         Numpy 1-dimensional array, by default `None` (namely, equal weight for each frame).
     --------
 
@@ -180,10 +180,10 @@ def compute_D_KL(weights_P: numpy.ndarray, correction_ff: numpy.ndarray, tempera
     
     Parameters
     ----------
-    weights_P : array_like
+    weights_P : 1-D array-like
         Numpy 1-dimensional array for the normalized weights P(x).
 
-    correction_ff : array_like
+    correction_ff : 1-D array-like
         Numpy 1-dimensional array for the reweighting potential V(x).
     
     temperature: float
@@ -245,7 +245,7 @@ def compute_chi2(ref, weights, g, gexp, if_separate=False):
     ref : dict
         Dictionary for references (`=`, `>`, `<`, `><`) used to compute the appropriate chi2.
     
-    weights : array_like
+    weights : 1-D array-like
         Numpy 1-dimensional array of weights.
     
     g : dict
@@ -498,7 +498,7 @@ def loss_function(
 
     Parameters
     ----------
-    pars_ff_fm: array_like
+    pars_ff_fm: 1-D array-like
         Numpy 1-dimensional array with parameters for force-field corrections and/or forward models.
         These parameters are sorted as: first force-field correction (ff), then forward model (fm);
         order for ff: `names_ff_pars = []`; `for k in system_names: [names_ff_pars.append(x) for x in data[k].f.keys() if x not in names_ff_pars]`;
@@ -514,7 +514,7 @@ def loss_function(
         The hyperparameters of the three refinements (respectively, to: the ensemble, the force-field, the forward-model);
         (`+np.inf` by default, namely no refinement in that direction).
     
-    fixed_lambdas: array_like
+    fixed_lambdas: 1-D array-like, optional
         Numpy 1-dimensional array of fixed values of `lambdas` (coefficients for Ensemble Refinement, organized as in `compute_js`).  (`None` by default).
     
     gtol_inn: float
@@ -800,7 +800,7 @@ def loss_function_and_grad(
     Parameters
     ----------
     
-    pars : array_like
+    pars : 1-D array-like
         Numpy array of parameters for force-field correction and forward model, respectively.
     
     data, regularization: dicts
@@ -928,7 +928,7 @@ def minimizer(
     data_test: dict
         Dictionary for `data`-like object employed as test set (`None` by default, namely no validation, just minimization).
     
-    starting_pars: array_like
+    starting_pars: 1-D array-like
         Numpy 1-dimensional array for pre-defined starting point of `loss_function` minimization (`None` by default).
     """
     assert alpha > 0, 'alpha must be > 0'
@@ -1413,7 +1413,7 @@ def select_traintest(
 
     # 1C. OBSERVABLES TEST
 
-    if test_obs is None:
+    if (test_obs is None) or (test_obs == []):
 
         n_obs_test = {}
         test_obs = {}
@@ -1457,11 +1457,26 @@ def select_traintest(
             for s2 in test_obs[s].keys():
                 flat.extend(test_obs[s][s2])
 
-        assert not flat == [], 'Error: no test observables have been selected'
+        n_tot_exp = data.properties.tot_n_experiments(data)
+
+        if flat == []:
+            # if no observables have been selected, then choose just one as test observable
+            # provided that you do not have only one observable 
+            if not n_tot_exp == 1:
+                s = rng.choice(data.mol.keys(), size=1)
+                s1 = rng.choice(data.mol[s1].keys(), size=1)
+                i = rng.choice(data.mol[s].n_experiments[s1], size=1)
+                test_obs[s][s1] = np.array([i])
+        
+        elif len(flat) == n_tot_exp:
+            # if all the observables have been selected as test, then remove one for the training
+                s = rng.choice(data.mol.keys(), size=1)
+                s1 = rng.choice(data.mol[s1].keys(), size=1)
+                i = rng.choice(data.mol[s].n_experiments[s1], size=1)
+                test_obs[s][s1] = np.delete(test_obs[s][s1], np.where(test_obs[s][s1] == i))
 
     # PART 2: GIVEN test_frames and test_obs, RETURN data_test AND data_train
     # train, test1 ('non-trained' obs, all or 'non-used' frames), test2 ('trained' obs, 'non-used' frames)
-
 
     # global properties:
 
@@ -1545,10 +1560,10 @@ def validation(
     Parameters
     ----------
     
-    pars_ff_fm: array_like
+    pars_ff_fm: 1-D array-like
         Numpy 1-dimensional array for the force-field and forward-model coefficients.
     
-    lambdas: array_like
+    lambdas: 1-D array-like
         Numpy 1-dimensional array of lambdas coefficients (those for ensemble refinement).
     
     data_test: dict
