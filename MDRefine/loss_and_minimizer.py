@@ -144,7 +144,7 @@ def normalize_observables(gexp, g, weights=None):
             norm_gstd[name] = np.std(g[name], axis=0)
         else:
             norm_gmean[name] = np.average(g[name], axis=0, weights=weights)
-            norm_gstd[name] = np.sqrt(np.average(g[name]**2, axis=0, weights=weights))-norm_gmean[name]**2
+            norm_gstd[name] = np.sqrt(np.average(g[name]**2, axis=0, weights=weights)-norm_gmean[name]**2)
 
         norm_gexp[name] = np.vstack([(gexp[name][:, 0]-norm_gmean[name])/norm_gstd[name], gexp[name][:, 1]/norm_gstd[name]]).T
         norm_g[name] = (g[name]-norm_gmean[name])/norm_gstd[name]
@@ -941,7 +941,7 @@ def minimizer(
 
     """ copy original_data and act only on the copy, preserving original_data """
 
-    data = copy.deepcopy(original_data) ## does it work?
+    data = copy.deepcopy(original_data)
 
     # data = {}
     # for k1 in original_data.keys():
