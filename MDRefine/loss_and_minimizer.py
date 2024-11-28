@@ -1464,7 +1464,7 @@ def select_traintest(
             # provided that you do not have only one observable 
             if not n_tot_exp == 1:
                 s = rng.choice(data.mol.keys(), size=1)
-                s1 = rng.choice(data.mol[s1].keys(), size=1)
+                s1 = rng.choice(data.mol[s].keys(), size=1)
                 i = rng.choice(data.mol[s].n_experiments[s1], size=1)
                 test_obs[s][s1] = np.array([i])
         
