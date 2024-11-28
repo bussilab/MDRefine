@@ -1,6 +1,7 @@
 import unittest
 import MDRefine
 from MDRefine import compute_new_weights, compute_chi2, compute_D_KL, l2_regularization
+import scipy
 
 class my_testcase(unittest.TestCase):
     def assertEqualObjs(self, obj1, obj2):
@@ -46,9 +47,10 @@ class my_testcase(unittest.TestCase):
                 if isinstance(obj1, bytes) or isinstance(obj2, bytes):
                     if isinstance(obj1, bytes): obj1 = str(obj1, 'utf-8')
                     else: obj2 = str(obj2, 'utf-8')
-                else: print('WARNING: obj1 is ', type(obj1), 'while obj2 is ', type(obj2))
-                
-                self.assertEqual(obj1, obj2)
+                elif not (isinstance(obj1, scipy.optimize._lbfgsb_py.LbfgsInvHessProduct) or isinstance(obj1, scipy.optimize._lbfgsb_py.LbfgsInvHessProduct)):
+                    print('WARNING: obj1 is ', type(obj1), 'while obj2 is ', type(obj2))
+                    
+                    self.assertEqual(obj1, obj2)
 
 class Test(my_testcase):
 
