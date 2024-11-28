@@ -43,7 +43,11 @@ class my_testcase(unittest.TestCase):
             elif isinstance(obj1, int) and isinstance(obj2, int):
                 self.assertEqual(obj1, obj2)
             else:
-                print('WARNING: obj1 is ', type(obj1), 'while obj2 is ', type(obj2))
+                if isinstance(obj1, bytes) or isinstance(obj2, bytes):
+                    if isinstance(obj1, bytes): print(str(obj1, 'utf-8'))
+                    else: print(str(obj2, 'utf-8'))
+                else: print('WARNING: obj1 is ', type(obj1), 'while obj2 is ', type(obj2))
+                
                 self.assertEqual(obj1, obj2)
 
 class Test(my_testcase):
