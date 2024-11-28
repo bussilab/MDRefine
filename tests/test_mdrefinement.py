@@ -9,9 +9,9 @@ class my_testcase(unittest.TestCase):
 
         print(obj1, obj2)
 
-        if isinstance(obj1, np.ndarray):
+        if isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray):
             if obj1.shape == (1,): obj1 = obj1[0]
-        if isinstance(obj2, np.ndarray):
+        if isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray):
             if obj2.shape == (1,): obj2 = obj2[0]
 
         if isinstance(obj1, dict) and isinstance(obj2, dict):

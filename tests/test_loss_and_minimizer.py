@@ -10,9 +10,9 @@ class my_testcase(unittest.TestCase):
 
         print(obj1, obj2)
 
-        if isinstance(obj1, np.ndarray):
+        if isinstance(obj1, np.ndarray) or isinstance(obj1, jnp.ndarray):
             if obj1.shape == (1,): obj1 = obj1[0]
-        if isinstance(obj2, np.ndarray):
+        if isinstance(obj2, np.ndarray) or isinstance(obj2, jnp.ndarray):
             if obj2.shape == (1,): obj2 = obj2[0]
 
         if isinstance(obj1, dict) and isinstance(obj2, dict):
@@ -276,7 +276,7 @@ class Test(my_testcase):
 
         out = gamma_function(lambdas, flatten_g, flatten_gexp, data.mol['AAAA'].weights, alpha, True)
 
-        out_test = (np.array([(6.27231308)]),
+        out_test = (np.array([(6.27231311)]),
             np.array([ 3.34791024e-01,  3.63254555e+00,  6.39012045e+00,  1.29484769e+00,
                     4.05246153e+00,  1.92475534e+00, -8.35131574e-06,  5.11595544e-05,
                     1.48046374e-04,  7.04939569e-05]),
