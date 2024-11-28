@@ -130,9 +130,8 @@ def MDRefinement(
 
     Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma)
 
-    # if not (tot == 1):
-    #     Result.optimal_hyperpars = optimal_hyperpars
-    #     Result.hyper_minimization = mini
+    Result.optimal_hyperpars = optimal_hyperpars
+    Result.hyper_minimization = mini
 
     print('\ndone')
 
