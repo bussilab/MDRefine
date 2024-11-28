@@ -117,7 +117,7 @@ class Test(my_testcase):
         
         my_string = 'results'
 
-        MDRefinement(infos, regularization=regularization, starting_alpha=1, starting_beta=1, starting_gamma=1, results_folder_name='tests/DATA_test/' + my_string, n_parallel_jobs=1)
+        MDRefinement(infos, regularization=regularization, starting_alpha=1, starting_beta=1, starting_gamma=1, which_set='validation', results_folder_name='tests/DATA_test/' + my_string, n_parallel_jobs=1)
         
         path_list = sorted(['tests/DATA_test/' + s + '/' for s in os.listdir('tests/DATA_test/') if s[:7] == my_string])
 
