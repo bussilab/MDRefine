@@ -322,9 +322,9 @@ class Test(my_testcase):
         infos = {'global': {
             'path_directory': 'tests/DATA_test',
             'system_names': ['AAAA', 'CAAU'],
-            'g_exp': ['backbone1_gamma_3J', 'backbone2_beta_epsilon_3J', 'sugar_3J', 'NOEs'],# , ('uNOEs', '<')],
+            'g_exp': ['backbone1_gamma_3J', 'backbone2_beta_epsilon_3J', 'sugar_3J', 'NOEs', ('uNOEs', '<')],
             'forward_qs': ['backbone1_gamma', 'backbone2_beta_epsilon','sugar'],
-            'obs': ['NOEs'],#, 'uNOEs'],
+            'obs': ['NOEs', 'uNOEs'],
             'forward_coeffs': 'original_fm_coeffs', 'forward_model': forward_model_fun,
             'names_ff_pars': ['sin alpha', 'cos alpha'], 'ff_correction': ff_correction}}
 
