@@ -178,6 +178,18 @@ def unwrap_2dict(my_2dict):
 
     return res, keys
 
+def unwrap_dict(d):
+
+    res = []
+    
+    if isinstance(d, dict):
+        for val in d.values():
+            res.extend(unwrap_dict(val))
+    else:
+        if isinstance(d, list): res = d
+        else: res = [d]
+
+    return np.hstack(res)
 
 def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     """

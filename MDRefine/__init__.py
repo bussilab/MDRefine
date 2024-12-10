@@ -21,7 +21,7 @@ from .loss_and_minimizer import l2_regularization, compute_chi2, compute_DeltaDe
 from .loss_and_minimizer import minimizer, select_traintest, validation
 from .hyperminimizer import compute_hyperderivatives, compute_chi2_tot, put_together, compute_hypergradient
 from .hyperminimizer import mini_and_chi2_and_grad, hyper_function, hyper_minimizer
-from .MDRefinement import MDRefinement, unwrap_2dict, save_txt
+from .MDRefinement import MDRefinement, unwrap_2dict, save_txt, unwrap_dict
 
 # required packages:
 _required_ = [
