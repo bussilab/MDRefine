@@ -1,7 +1,7 @@
 """
 Tools n. 2: `loss_and_minimizer`.
 It defines the loss functions and minimizes it.
-It includes also `select_traintest` and `validation`.
+It includes also `split_dataset` and `validation`.
 """
 
 import copy
@@ -907,9 +907,9 @@ class intermediates_class:
 
 def minimizer(
         original_data, *, regularization: dict = None, alpha: float = +numpy.inf, beta: float = +numpy.inf, gamma: float = +numpy.inf,
-        gtol: float = 1e-3, gtol_inn: float = 1e-3, data_test: dict = None, starting_pars: numpy.ndarray = None):
+        gtol: float = 1e-3, gtol_inn: float = 1e-3, data_valid: dict = None, starting_pars: numpy.ndarray = None):
     """
-    This tool minimizes loss_function on `original_data` and do `validation` on `data_test` (if `not None`), at given hyperparameters.
+    This tool minimizes loss_function on `original_data` and do `validation` on `data_valid` (if `not None`), at given hyperparameters.
 
     Parameters
     ----------
@@ -925,8 +925,8 @@ def minimizer(
     gtol, gtol_inn: floats
         Tolerances `gtol` for the minimizations of `loss_function` and inner `gamma_function`, respectively.
     
-    data_test: dict
-        Dictionary for `data`-like object employed as test set (`None` by default, namely no validation, just minimization).
+    data_valid: dict
+        Dictionary for `data`-like object employed as validation set (`None` by default, namely no validation, just minimization).
     
     starting_pars: 1-D array-like
         Numpy 1-dimensional array for pre-defined starting point of `loss_function` minimization (`None` by default).
@@ -1108,42 +1108,42 @@ def minimizer(
         setattr(Result, k, getattr(Details, k))
     del Details
 
-    if data_test is not None:
-        Details_test = validation(
-            pars_ff_fm, flatten_lambda, data_test, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
+    if data_valid is not None:
+        Details_validation = validation(
+            pars_ff_fm, flatten_lambda, data_valid, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
             which_return='details')
 
         if not np.isinf(alpha):
-            Details_test.loss = Details_test.loss_explicit
-            del Details_test.loss_explicit
-            # del Details_test.minis
+            Details_validation.loss = Details_validation.loss_explicit
+            del Details_validation.loss_explicit
+            # del Details_validation.minis
 
-        for k in vars(Details_test).keys():
+        for k in vars(Details_validation).keys():
             if not (k[-7:] == 'new_obs'):
-                k1 = k + '_test'
+                k1 = k + '_valid'
             else:
                 k1 = k
-            setattr(Result, k1, getattr(Details_test, k))
-        del Details_test
+            setattr(Result, k1, getattr(Details_validation, k))
+        del Details_validation
 
     return Result
 
-# %% C11. select_traintest
+# %% C11. split_dataset
 
-class class_test:
+class class_validation:
     """
-    Class for test data set, with similar structure as `data_class`.
+    Class for validation data set, with similar structure as `data_class`.
     """
-    def __init__(self, data_mol, test_frames_mol, test_obs_mol, if_all_frames, data_train_mol):
+    def __init__(self, data_mol, valid_frames_mol, valid_obs_mol, if_all_frames, data_train_mol):
 
         # A. split weights
         try:
-            w = data_mol.weights[tuple(test_frames_mol)]
+            w = data_mol.weights[tuple(valid_frames_mol)]
         except:
             try:
-                w = data_mol.weights[test_frames_mol]
+                w = data_mol.weights[valid_frames_mol]
             except:
-                w = data_mol.weights[list(test_frames_mol)]
+                w = data_mol.weights[list(valid_frames_mol)]
         
         self.logZ = np.log(np.sum(w))
         self.weights = w/np.sum(w)
@@ -1153,9 +1153,9 @@ class class_test:
         if hasattr(data_mol, 'f'):
             self.ff_correction = data_mol.ff_correction
             try:
-                self.f = data_mol.f[test_frames_mol, :]
+                self.f = data_mol.f[valid_frames_mol, :]
             except:
-                self.f = data_mol.f[list(test_frames_mol), :]
+                self.f = data_mol.f[list(valid_frames_mol), :]
 
         # C. split experimental values gexp, normg_mean and normg_std, observables g
 
@@ -1166,18 +1166,18 @@ class class_test:
             for name_type in data_mol.gexp.keys():
 
                 try:
-                    self.gexp_new[name_type] = data_mol.gexp[name_type][list(test_obs_mol[name_type])]
+                    self.gexp_new[name_type] = data_mol.gexp[name_type][list(valid_obs_mol[name_type])]
                 except:
-                    self.gexp_new[name_type] = data_mol.gexp[name_type][test_obs_mol[name_type]]
+                    self.gexp_new[name_type] = data_mol.gexp[name_type][valid_obs_mol[name_type]]
 
-                self.n_experiments_new[name_type] = len(test_obs_mol[name_type])
+                self.n_experiments_new[name_type] = len(valid_obs_mol[name_type])
 
         if hasattr(data_mol, 'names'):
 
             self.names_new = {}
 
             for name_type in data_mol.names.keys():
-                self.names_new[name_type] = data_mol.names[name_type][list(test_obs_mol[name_type])]
+                self.names_new[name_type] = data_mol.names[name_type][list(valid_obs_mol[name_type])]
 
         if hasattr(data_mol, 'g'):
 
@@ -1188,24 +1188,24 @@ class class_test:
 
             for name_type in data_mol.g.keys():
 
-                # split g into: train, test1 (non-trained obs, all frames or only non-used ones),
-                # test2 (trained obs, non-used frames)
-                # if not test_obs[name_mol][name_type] == []:
-                self.g_new[name_type] = (data_mol.g[name_type][test_frames_mol, :].T)[test_obs_mol[name_type], :].T
+                # split g into: training, validation (validation observables, all frames or only non-trained ones),
+                # valid_frames (trained obs, non-used frames)
+                # if not valid_obs[name_mol][name_type] == []:
+                self.g_new[name_type] = (data_mol.g[name_type][valid_frames_mol, :].T)[valid_obs_mol[name_type], :].T
 
                 if if_all_frames:  # new observables on trained frames
                     self.g_new_old[name_type] = np.delete(
-                        data_mol.g[name_type], test_frames_mol, axis=0)[:, list(test_obs_mol[name_type])]
+                        data_mol.g[name_type], valid_frames_mol, axis=0)[:, list(valid_obs_mol[name_type])]
 
-                g3 = np.delete(data_mol.g[name_type], test_obs_mol[name_type], axis=1)
-                self.g[name_type] = g3[test_frames_mol, :]
+                g3 = np.delete(data_mol.g[name_type], valid_obs_mol[name_type], axis=1)
+                self.g[name_type] = g3[valid_frames_mol, :]
 
         if hasattr(data_mol, 'forward_qs'):
 
             self.forward_qs = {}
 
             for name_type in data_mol.forward_qs.keys():
-                self.forward_qs[name_type] = data_mol.forward_qs[name_type][list(test_frames_mol), :]
+                self.forward_qs[name_type] = data_mol.forward_qs[name_type][list(valid_frames_mol), :]
 
             if if_all_frames:
                 self.forward_qs_trained = copy.deepcopy(data_train_mol.forward_qs)
@@ -1216,7 +1216,7 @@ class class_test:
         self.ref = copy.deepcopy(data_mol.ref)
         self.ref_all = copy.deepcopy(data_mol.ref)
         self.selected_obs = copy.deepcopy(data_train_mol.selected_obs)  # same observables as in training
-        self.selected_obs_new = test_obs_mol
+        self.selected_obs_new = valid_obs_mol
 
         self.gexp = copy.deepcopy(data_train_mol).gexp
         self.n_experiments = copy.deepcopy(data_train_mol).n_experiments
@@ -1227,16 +1227,16 @@ class class_train:
     """
     Class for training data set, with similar structure as `data_class`.
     """
-    def __init__(self, data_mol, test_frames_mol, test_obs_mol):
+    def __init__(self, data_mol, valid_frames_mol, valid_obs_mol):
 
         # training observables
         train_obs = {}
         for s in data_mol.n_experiments.keys():
-            train_obs[s] = [i for i in range(data_mol.n_experiments[s]) if i not in test_obs_mol[s]]
+            train_obs[s] = [i for i in range(data_mol.n_experiments[s]) if i not in valid_obs_mol[s]]
         self.selected_obs = train_obs
 
         # A. split weights
-        w = np.delete(data_mol.weights, test_frames_mol)
+        w = np.delete(data_mol.weights, valid_frames_mol)
         self.logZ = np.log(np.sum(w))
         self.weights = w/np.sum(w)
         self.n_frames = np.shape(w)[0]
@@ -1245,7 +1245,7 @@ class class_train:
 
         if hasattr(data_mol, 'f'):
             self.ff_correction = data_mol.ff_correction
-            self.f = np.delete(data_mol.f, test_frames_mol, axis=0)
+            self.f = np.delete(data_mol.f, valid_frames_mol, axis=0)
 
         # C. split experimental values gexp, normg_mean and normg_std, observables g
 
@@ -1255,7 +1255,7 @@ class class_train:
             self.n_experiments = {}
 
             for name_type in data_mol.gexp.keys():
-                self.gexp[name_type] = np.delete(data_mol.gexp[name_type], test_obs_mol[name_type], axis=0)
+                self.gexp[name_type] = np.delete(data_mol.gexp[name_type], valid_obs_mol[name_type], axis=0)
                 self.n_experiments[name_type] = np.shape(self.gexp[name_type])[0]
 
         if hasattr(data_mol, 'names'):
@@ -1270,15 +1270,15 @@ class class_train:
             self.g = {}
 
             for name_type in data_mol.g.keys():
-                train_g = np.delete(data_mol.g[name_type], test_frames_mol, axis=0)
-                self.g[name_type] = np.delete(train_g, test_obs_mol[name_type], axis=1)
+                train_g = np.delete(data_mol.g[name_type], valid_frames_mol, axis=0)
+                self.g[name_type] = np.delete(train_g, valid_obs_mol[name_type], axis=1)
 
         if hasattr(data_mol, 'forward_qs'):
 
             self.forward_qs = {}
 
             for name_type in data_mol.forward_qs.keys():
-                self.forward_qs[name_type] = np.delete(data_mol.forward_qs[name_type], test_frames_mol, axis=0)
+                self.forward_qs[name_type] = np.delete(data_mol.forward_qs[name_type], valid_frames_mol, axis=0)
 
         if hasattr(data_mol, 'forward_model'):
             self.forward_model = data_mol.forward_model
@@ -1288,55 +1288,57 @@ class class_train:
         self.temperature = data_mol.temperature
 
 
-def select_traintest(
-        data, *, test_frames_size: float = 0.2, test_obs_size: float = 0.2, random_state: int = None,
-        test_frames: dict = None, test_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None):
+def split_dataset(
+        data, *, valid_frames_size: float = 0.2, valid_obs_size: float = 0.2, random_state: int = None,
+        valid_frames: dict = None, valid_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None):
     """
-    This tool splits the data set into training and test set. You can either randomly select the frames and/or the observables (accordingly to `test_frames_size`, `test_obs_size`, `random_state`) or pass the dictionaries `test_obs` and/or `test_frames`.
+    This tool splits the data set into training and validation set.
+    You can either randomly select the frames and/or the observables (accordingly to `valid_frames_size`, `valid_obs_size`, `random_state`)
+    or pass the dictionaries `valid_obs` and/or `valid_frames`.
 
     Parameters
     ----------
     data : class instance
         Class instance for the `data` object.
     
-    test_frames_size, test_obs_size : float
-        Values for the fractions of frames and observables for the test set, respectively. Each of them is a number in (0,1) (same fraction for every system),
+    valid_frames_size, valid_obs_size : float
+        Values for the fractions of frames and observables for the validation set, respectively. Each of them is a number in (0,1) (same fraction for every system),
         by default `0.2`.
     
     random_state : int
         The random state (or seed), used to make the same choice for different hyperparameters; if `None`,
         it is randomly taken.
     
-    test_frames, test_obs : dicts
-        Dictionaries for the test frames and observables.
+    valid_frames, valid_obs : dicts
+        Dictionaries for the validation frames and observables.
     
     if_all_frames : bool
-        Boolean variable, `False` by default; if `True`, then use all the frames for the test observables in the test set,
-        otherwise just the test frames.
+        Boolean variable, `False` by default; if `True`, then use all the frames for the validation observables in the validation set,
+        otherwise just the validation frames.
     
     replica_infos : dict
         Dictionary of information used to select frames based on continuous trajectories ("demuxing"), by default `None` (just randomly select frames).
-        It includes: `n_temp_replica`, `path_directory`, `stride`. If not `None`, `select_traintest` will read `replica_temp.npy` files
+        It includes: `n_temp_replica`, `path_directory`, `stride`. If not `None`, `split_dataset` will read `replica_temp.npy` files
         with shape `(n_frames, n_replicas)` containing numbers from 0 to `n_replicas - 1` which indicate corresponding temperatures (for each replica
         index in `axis=1`).
     --------
 
     Returns
     --------
-    data_train, data_test : class instances
-        Class instances for training and test data; `data_test` includes:
-        trained observables and non-trained (test) frames (where it is not specified `new`);
-        non-trained (test) observables and non-trained/all (accordingly to `if_all_frames`) frames (where specified `new`).
+    data_train, data_valid : class instances
+        Class instances for training and validation data; `data_valid` includes:
+        trained observables and non-trained (validation) frames (where it is not specified `new`);
+        non-trained (validation) observables and non-trained/all (accordingly to `if_all_frames`) frames (where specified `new`).
     
-    test_obs, test_frames : dicts
-        Dictionaries for the observables and frames selected for the test set.
+    valid_obs, valid_frames : dicts
+        Dictionaries for the observables and frames selected for the validation set.
     """
-    # PART 1: IF NONE, SELECT TEST OBSERVABLES AND TEST FRAMES
+    # PART 1: IF NONE, SELECT VALIDATION OBSERVABLES AND VALIDATION FRAMES
 
     system_names = data.properties.system_names
     rng = None
 
-    if (test_frames is None) or (test_obs is None):
+    if (valid_frames is None) or (valid_obs is None):
 
         if random_state is None:
             # try:
@@ -1349,28 +1351,28 @@ def select_traintest(
         rng = random.default_rng(seed=random_state)
         # except: key = random.PRNGKey(random_state)
 
-        assert (test_obs_size > 0 and test_obs_size < 1), 'error on test_obs_size'
-        assert (test_frames_size > 0 and test_frames_size < 1), 'error on test_frames_size'
+        assert (valid_obs_size > 0 and valid_obs_size < 1), 'error on valid_obs_size'
+        assert (valid_frames_size > 0 and valid_frames_size < 1), 'error on valid_frames_size'
 
-        # check_consistency(test_obs_size,data.n_experiments,0,data.g)
-        # check_consistency(test_frames_size,data.n_frames,1,data.g)
+        # check_consistency(valid_obs_size,data.n_experiments,0,data.g)
+        # check_consistency(valid_frames_size,data.n_frames,1,data.g)
 
-        if test_frames is not None:
-            print('Input random_state employed only for test_obs since test_frames are given')
-        elif test_obs is not None:
-            print('Input random_state employed only for test_frames since test_obs are given')
+        if valid_frames is not None:
+            print('Input random_state employed only for valid_obs since valid_frames are given')
+        elif valid_obs is not None:
+            print('Input random_state employed only for valid_frames since valid_obs are given')
         else:
-            print('Input random_state employed both for test_obs and test_frames')
+            print('Input random_state employed both for valid_obs and valid_frames')
 
     elif random_state is not None:
-        print('Input random_state not employed, since both test_frames and test_obs are given')
+        print('Input random_state not employed, since both valid_frames and valid_obs are given')
 
-    # 1B. FRAMES TEST
+    # 1B. FRAMES VALIDATION
 
-    if test_frames is None:
+    if valid_frames is None:
 
-        test_frames = {}
-        test_replicas = {}
+        valid_frames = {}
+        valid_replicas = {}
 
         for name_mol in system_names:
 
@@ -1391,59 +1393,59 @@ def select_traintest(
                 for i in range(n_replicas):
                     pos_replicas.append(np.argwhere(replica_index[:, n_temp] == i)[:, 0])
 
-                n_replicas_test = np.int16(np.round(test_frames_size*n_replicas))
-                test_replicas[name_mol] = np.sort(rng.choice(n_replicas, n_replicas_test, replace=False))
+                n_replicas_valid = np.int16(np.round(valid_frames_size*n_replicas))
+                valid_replicas[name_mol] = np.sort(rng.choice(n_replicas, n_replicas_valid, replace=False))
 
                 fin = np.array([])
-                for i in range(n_replicas_test):
-                    fin = np.concatenate((fin, pos_replicas[test_replicas[name_mol][i]]))
-                test_frames[name_mol] = np.array(fin).astype(int)
+                for i in range(n_replicas_valid):
+                    fin = np.concatenate((fin, pos_replicas[valid_replicas[name_mol][i]]))
+                valid_frames[name_mol] = np.array(fin).astype(int)
                 del fin
 
             else:
 
-                n_frames_test = np.int16(np.round(test_frames_size*data.mol[name_mol].n_frames))
-                test_frames[name_mol] = np.sort(rng.choice(data.mol[name_mol].n_frames, n_frames_test, replace=False))
+                n_frames_valid = np.int16(np.round(valid_frames_size*data.mol[name_mol].n_frames))
+                valid_frames[name_mol] = np.sort(rng.choice(data.mol[name_mol].n_frames, n_frames_valid, replace=False))
                 # except:
-                # test_frames[name_mol] = random.choice(key, data.mol[name_mol].n_frames,(n_frames_test[name_mol],),
+                # valid_frames[name_mol] = random.choice(key, data.mol[name_mol].n_frames,(n_frames_valid[name_mol],),
                 # replace = False)
 
-        if test_replicas == {}:
-            del test_replicas
+        if valid_replicas == {}:
+            del valid_replicas
 
-    # 1C. OBSERVABLES TEST
+    # 1C. OBSERVABLES VALIDATION
 
-    if (test_obs is None) or (test_obs == []):
+    if (valid_obs is None) or (valid_obs == []):
 
-        n_obs_test = {}
-        test_obs = {}
+        n_obs_valid = {}
+        valid_obs = {}
 
         """ here you select with the same fraction for each type of observable"""
         # for name_mol in data.weights.keys():
-        #     n_obs_test[name_mol] = {}
-        #     test_obs[name_mol] = {}
+        #     n_obs_valid[name_mol] = {}
+        #     valid_obs[name_mol] = {}
 
         #     for name_type in data.g[name_mol].keys():
-        #         n_obs_test[name_mol][name_type] = np.int16(np.round(test_obs_size*data.n_experiments[name_mol][name_type]))
-        #         test_obs[name_mol][name_type] = np.sort(rng.choice(data.n_experiments[name_mol][name_type],
-        #           n_obs_test[name_mol][name_type],replace = False))
+        #         n_obs_valid[name_mol][name_type] = np.int16(np.round(valid_obs_size*data.n_experiments[name_mol][name_type]))
+        #         valid_obs[name_mol][name_type] = np.sort(rng.choice(data.n_experiments[name_mol][name_type],
+        #           n_obs_valid[name_mol][name_type],replace = False))
 
         """ here instead you select the same fraction for each system and then take the corresponding observables
         (in this way, no issue for types of observables with only 1 observable """
         for name_mol in system_names:
 
-            n_obs_test[name_mol] = {}
-            test_obs[name_mol] = {}
+            n_obs_valid[name_mol] = {}
+            valid_obs[name_mol] = {}
 
             n = np.sum(np.array(list(data.mol[name_mol].n_experiments.values())))
-            vec = np.sort(rng.choice(n, np.int16(np.round(n*test_obs_size)), replace=False))
-            # except: vec = np.sort(jax.random.choice(key, n, (np.int16(np.round(n*test_obs_size)),), replace = False))
+            vec = np.sort(rng.choice(n, np.int16(np.round(n*valid_obs_size)), replace=False))
+            # except: vec = np.sort(jax.random.choice(key, n, (np.int16(np.round(n*valid_obs_size)),), replace = False))
 
             sum = 0
             for name_type in data.mol[name_mol].n_experiments.keys():
 
-                test_obs[name_mol][name_type] = vec[(vec >= sum) & (vec < sum + data.mol[name_mol].n_experiments[name_type])] - sum
-                n_obs_test[name_mol][name_type] = len(test_obs[name_mol][name_type])
+                valid_obs[name_mol][name_type] = vec[(vec >= sum) & (vec < sum + data.mol[name_mol].n_experiments[name_type])] - sum
+                n_obs_valid[name_mol][name_type] = len(valid_obs[name_mol][name_type])
 
                 sum += data.mol[name_mol].n_experiments[name_type]
 
@@ -1453,107 +1455,107 @@ def select_traintest(
 
         flat = []
 
-        for s in test_obs.keys():
-            for s2 in test_obs[s].keys():
-                flat.extend(test_obs[s][s2])
+        for s in valid_obs.keys():
+            for s2 in valid_obs[s].keys():
+                flat.extend(valid_obs[s][s2])
 
         n_tot_exp = data.properties.tot_n_experiments(data)
 
         if flat == []:
-            # if no observables have been selected, then choose just one as test observable
+            # if no observables have been selected, then choose just one as validation observable
             # provided that you do not have only one observable 
             if not n_tot_exp == 1:
                 s = rng.choice(data.mol.keys(), size=1)
                 s1 = rng.choice(data.mol[s].keys(), size=1)
                 i = rng.choice(data.mol[s].n_experiments[s1], size=1)
-                test_obs[s][s1] = np.array([i])
+                valid_obs[s][s1] = np.array([i])
         
         elif len(flat) == n_tot_exp:
-            # if all the observables have been selected as test, then remove one for the training
+            # if all the observables have been selected as validation, then remove one for the training
                 s = rng.choice(data.mol.keys(), size=1)
                 s1 = rng.choice(data.mol[s1].keys(), size=1)
                 i = rng.choice(data.mol[s].n_experiments[s1], size=1)
-                test_obs[s][s1] = np.delete(test_obs[s][s1], np.where(test_obs[s][s1] == i))
+                valid_obs[s][s1] = np.delete(valid_obs[s][s1], np.where(valid_obs[s][s1] == i))
 
-    # PART 2: GIVEN test_frames and test_obs, RETURN data_test AND data_train
-    # train, test1 ('non-trained' obs, all or 'non-used' frames), test2 ('trained' obs, 'non-used' frames)
+    # PART 2: GIVEN valid_frames and valid_obs, RETURN data_valid AND data_train
+    # train, validation ('non-trained' obs, all or 'non-used' frames), valid_frames ('trained' obs, 'non-used' frames)
 
     # global properties:
 
     data_ = copy.deepcopy(data)
     
-    class my_data_traintest:
+    class my_data_trainvalid:
         def __init__(self, data_):
             self.properties = data_.properties
             self.mol = {}
 
-    data_train = my_data_traintest(data_)
-    data_test = my_data_traintest(data_)
+    data_train = my_data_trainvalid(data_)
+    data_valid = my_data_trainvalid(data_)
 
     # for over different systems:
 
     for name_mol in system_names:
 
-        data_train.mol[name_mol] = class_train(data_.mol[name_mol], test_frames[name_mol], test_obs[name_mol])
-        data_test.mol[name_mol] = class_test(
-            data_.mol[name_mol], test_frames[name_mol], test_obs[name_mol], if_all_frames, data_train.mol[name_mol])
+        data_train.mol[name_mol] = class_train(data_.mol[name_mol], valid_frames[name_mol], valid_obs[name_mol])
+        data_valid.mol[name_mol] = class_validation(
+            data_.mol[name_mol], valid_frames[name_mol], valid_obs[name_mol], if_all_frames, data_train.mol[name_mol])
 
-    # """ if some type of observables are not included in test observables, delete them to avoid empty items """
+    # """ if some type of observables are not included in validation observables, delete them to avoid empty items """
     # for name_mol in system_names:
-    #     for name_type in test_obs[name_mol].keys():
-    #         if len(test_obs[name_mol][name_type]) == 0:
-    #             del data_test.mol[name_mol].gexp_new[name_type]
-    #             if name_type in data_test.mol[name_mol].g_new.keys():
-    #                 del data_test.mol[name_mol].g_new[name_type]
-    #                 if if_all_frames: del data_test.mol[name_mol].g_new_old[name_type]
+    #     for name_type in valid_obs[name_mol].keys():
+    #         if len(valid_obs[name_mol][name_type]) == 0:
+    #             del data_valid.mol[name_mol].gexp_new[name_type]
+    #             if name_type in data_valid.mol[name_mol].g_new.keys():
+    #                 del data_valid.mol[name_mol].g_new[name_type]
+    #                 if if_all_frames: del data_valid.mol[name_mol].g_new_old[name_type]
 
-    for s1 in test_obs.keys():
+    for s1 in valid_obs.keys():
         my_list1 = []
         my_list2 = []
 
-        for s2 in test_obs[s1].keys():
-            if len(test_obs[s1][s2]) == 0:
+        for s2 in valid_obs[s1].keys():
+            if len(valid_obs[s1][s2]) == 0:
                 my_list1.append(s2)
-            elif len(test_obs[s1][s2]) == data.mol[s1].n_experiments[s2]:
+            elif len(valid_obs[s1][s2]) == data.mol[s1].n_experiments[s2]:
                 my_list2.append(s2)
 
         for s2 in my_list1:
-            """ no test observables of this kind """
-            del data_test.mol[s1].gexp_new[s2], data_test.mol[s1].g_new[s2], data_test.mol[s1].n_experiments_new[s2]
-            del data_test.mol[s1].selected_obs_new[s2]  # , data_test[s1].names_new[s2]
+            """ no validation observables of this kind """
+            del data_valid.mol[s1].gexp_new[s2], data_valid.mol[s1].g_new[s2], data_valid.mol[s1].n_experiments_new[s2]
+            del data_valid.mol[s1].selected_obs_new[s2]  # , data_valid[s1].names_new[s2]
 
         for s2 in my_list2:
             """ no training observables of this kind"""
-            del data_test.mol[s1].gexp[s2], data_test.mol[s1].g[s2], data_test.mol[s1].n_experiments[s2]
-            del data_test.mol[s1].ref[s2]  # , data_test.mol[s1].names[s2]
+            del data_valid.mol[s1].gexp[s2], data_valid.mol[s1].g[s2], data_valid.mol[s1].n_experiments[s2]
+            del data_valid.mol[s1].ref[s2]  # , data_valid.mol[s1].names[s2]
             
-            # del data_test.mol[s1].selected_obs[s2]  # , data_test[s1].names[s2]
+            # del data_valid.mol[s1].selected_obs[s2]  # , data_valid[s1].names[s2]
 
             # del data_train.mol[s1].g[s2], data_train.mol[s1].ref[s2], data_train.mol[s1].names[s2]
             # del data_train.mol[s1].gexp[s2], data_train.mol[s1].n_experiments[s2]
 
         for s2 in my_list1:
-            test_obs[s1][s2] = np.int64(np.array([]))
+            valid_obs[s1][s2] = np.int64(np.array([]))
 
     # if pos_replicas is None:
-    return data_train, data_test, test_obs, test_frames
+    return data_train, data_valid, valid_obs, valid_frames
     # else:
-    #     return data_train, data_test, test_obs, test_frames, test_rep
+    #     return data_train, data_valid, valid_obs, valid_frames, valid_rep
 
 # %% C12. validation
 
 
 def validation(
-        pars_ff_fm, lambdas, data_test, *, regularization=None, alpha=np.inf, beta=np.inf, gamma=np.inf,
+        pars_ff_fm, lambdas, data_valid, *, regularization=None, alpha=np.inf, beta=np.inf, gamma=np.inf,
         data_train=None, which_return='details'):
     """
-    This tool evaluates `loss_function` in detail over the test set; then,
+    This tool evaluates `loss_function` in detail over the validation set; then,
 
-    - if `which_return == 'chi2 validation'`, it returns the total chi2 on the `'validation'` data set (training observables, test frames);
+    - if `which_return == 'chi2 valid. frames'`, it returns the total chi2 on the `'valid. frames'` data set (training observables, validation frames);
     this is required to compute the derivatives of the chi2 in `'validation'` with Jax;
     
-    - elif `which_return == 'chi2 test'`, it returns the total chi2 on the `'test'` data set (test observables, test frames
-        or all frames if `data_train is not None`); this is required to compute the derivatives of the chi2 in `'test'` with Jax;
+    - elif `which_return == 'chi2 validation'`, it returns the total chi2 on the `'validation'` data set (validation observables, validation frames
+        or all frames if `data_train is not None`); this is required to compute the derivatives of the chi2 in `'validation'` with Jax;
     
     - else, it returns `Validation_values` class instance, with all the computed values (both chi2 and regularizations).
 
@@ -1566,8 +1568,8 @@ def validation(
     lambdas: 1-D array-like
         Numpy 1-dimensional array of lambdas coefficients (those for ensemble refinement).
     
-    data_test: dict
-        Dictionary for the test data set, `data`-like object, as returned by `select_traintest`.
+    data_valid: dict
+        Dictionary for the validation data set, `data`-like object, as returned by `select_trainvalid`.
     
     regularization: dict
         Dictionary for the regularizations (see in `MDRefinement`), by default, `None`.
@@ -1576,8 +1578,8 @@ def validation(
         Values for the hyperparameters (by default, `+np.inf`, namely, no refinement).
     
     data_train: dict
-        Dictionary for the training data set, `data`-like object, as returned by `select_traintest` (`None` by default,
-        namely use only test frames for new observables).
+        Dictionary for the training data set, `data`-like object, as returned by `select_trainvalid` (`None` by default,
+        namely use only validation frames for new observables).
     
     which_return: str
         String described above (by default `'details'`).
@@ -1586,11 +1588,11 @@ def validation(
     assert beta >= 0, 'beta must be >= 0'
     assert gamma >= 0, 'gamma must be >= 0'
 
-    system_names = data_test.properties.system_names
+    system_names = data_valid.properties.system_names
     names_ff_pars = []
 
     if not np.isinf(beta):
-        names_ff_pars = data_test.properties.names_ff_pars
+        names_ff_pars = data_valid.properties.names_ff_pars
 
     pars_fm = None  # to avoid error in pylint
     if not np.isinf(gamma):
@@ -1599,7 +1601,7 @@ def validation(
         del names_ff_pars
 
     """ Compute loss_function in detail for validating set (same observables as in training, new frames). """
-    Validation_values = loss_function(pars_ff_fm, data_test, regularization, alpha, beta, gamma, lambdas, if_save=True)
+    Validation_values = loss_function(pars_ff_fm, data_valid, regularization, alpha, beta, gamma, lambdas, if_save=True)
 
     if which_return == 'chi2 validation':
         tot_chi2 = 0
@@ -1613,54 +1615,54 @@ def validation(
     Validation_values.avg_new_obs = {}
     Validation_values.chi2_new_obs = {}
 
-    # if hasattr(data_test,'selected_obs'):
-    #     for name in data_test.forward_qs.keys():
-    #         for type_name in data_test.forward_qs[name].keys():
-    #             data_test.forward_qs[name][type_name] = data_test.forward_qs[name][type_name]
-    #               #[:,data_test.selected_obs[name][type_name]]
+    # if hasattr(data_valid,'selected_obs'):
+    #     for name in data_valid.forward_qs.keys():
+    #         for type_name in data_valid.forward_qs[name].keys():
+    #             data_valid.forward_qs[name][type_name] = data_valid.forward_qs[name][type_name]
+    #               #[:,data_valid.selected_obs[name][type_name]]
 
     g = {}
 
     for name_mol in system_names:
 
         if np.isinf(gamma):
-            if hasattr(data_test.mol[name_mol], 'g_new'):
-                g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new)
+            if hasattr(data_valid.mol[name_mol], 'g_new'):
+                g[name_mol] = copy.deepcopy(data_valid.mol[name_mol].g_new)
         else:
-            if hasattr(data_test.mol[name_mol], 'g_new'):
-                g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new)
+            if hasattr(data_valid.mol[name_mol], 'g_new'):
+                g[name_mol] = copy.deepcopy(data_valid.mol[name_mol].g_new)
             else:
                 g[name_mol] = {}
 
-            if hasattr(data_test.mol[name_mol], 'selected_obs_new'):
-                selected_obs = data_test.mol[name_mol].selected_obs_new
+            if hasattr(data_valid.mol[name_mol], 'selected_obs_new'):
+                selected_obs = data_valid.mol[name_mol].selected_obs_new
             else:
                 selected_obs = None
 
-            fm_observables = data_test.mol[name_mol].forward_model(pars_fm, data_test.mol[name_mol].forward_qs, selected_obs)
+            fm_observables = data_valid.mol[name_mol].forward_model(pars_fm, data_valid.mol[name_mol].forward_qs, selected_obs)
 
             for name in fm_observables.keys():
 
                 g[name_mol][name] = fm_observables[name]
-                if hasattr(data_test.mol[name_mol], 'normg_mean'):
+                if hasattr(data_valid.mol[name_mol], 'normg_mean'):
                     g[name_mol][name] = (
-                        g[name_mol][name]-data_test.mol[name_mol].normg_mean[name])/data_test.mol[name_mol].normg_std[name]
+                        g[name_mol][name]-data_valid.mol[name_mol].normg_mean[name])/data_valid.mol[name_mol].normg_std[name]
 
             del fm_observables
 
     for name_mol in system_names:
 
-        args = (data_test.mol[name_mol].ref_all, Validation_values.weights_new[name_mol], g[name_mol], data_test.mol[name_mol].gexp_new)
+        args = (data_valid.mol[name_mol].ref_all, Validation_values.weights_new[name_mol], g[name_mol], data_valid.mol[name_mol].gexp_new)
         out = compute_chi2(*args)
 
         Validation_values.avg_new_obs[name_mol] = out[0]
 
-        if not hasattr(data_test.mol[name_mol], 'forward_qs_trained'):
+        if not hasattr(data_valid.mol[name_mol], 'forward_qs_trained'):
             Validation_values.chi2_new_obs[name_mol] = out[1]
 
     # then, if you want to include also trained frames for validating observables:
 
-    if hasattr(data_test.mol[system_names[0]], 'forward_qs_trained') and (data_train is not None):  # forward qs on trained frames
+    if hasattr(data_valid.mol[system_names[0]], 'forward_qs_trained') and (data_train is not None):  # forward qs on trained frames
 
         Details_train = loss_function(pars_ff_fm, data_train, regularization, alpha, beta, gamma, lambdas, if_save=True)
 
@@ -1668,50 +1670,50 @@ def validation(
 
         for name_mol in system_names:
             if np.isinf(gamma):
-                if hasattr(data_test.mol[name_mol], 'g_new_old'):
-                    g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new_old)
+                if hasattr(data_valid.mol[name_mol], 'g_new_old'):
+                    g[name_mol] = copy.deepcopy(data_valid.mol[name_mol].g_new_old)
             else:
-                if hasattr(data_test.mol[name_mol], 'g_new_old'):
-                    g[name_mol] = copy.deepcopy(data_test.mol[name_mol].g_new_old)
+                if hasattr(data_valid.mol[name_mol], 'g_new_old'):
+                    g[name_mol] = copy.deepcopy(data_valid.mol[name_mol].g_new_old)
                 else:
                     g[name_mol] = {}
 
-                if hasattr(data_test.mol[name_mol], 'selected_obs'):
-                    selected_obs = data_test.mol[name_mol].selected_obs
+                if hasattr(data_valid.mol[name_mol], 'selected_obs'):
+                    selected_obs = data_valid.mol[name_mol].selected_obs
                 else:
                     selected_obs = None
 
-                fm_observables = data_test.mol[name_mol].forward_model(pars_fm, data_test.mol[name_mol].forward_qs, selected_obs)
+                fm_observables = data_valid.mol[name_mol].forward_model(pars_fm, data_valid.mol[name_mol].forward_qs, selected_obs)
 
                 for name in fm_observables.keys():
 
                     g[name_mol][name] = fm_observables[name]
-                    if hasattr(data_test.mol[name_mol], 'normg_mean'):
+                    if hasattr(data_valid.mol[name_mol], 'normg_mean'):
                         g[name_mol][name] = (
-                            g[name_mol][name]-data_test.mol[name_mol].normg_mean[name])/data_test.mol[name_mol].normg_std[name]
+                            g[name_mol][name]-data_valid.mol[name_mol].normg_mean[name])/data_valid.mol[name_mol].normg_std[name]
 
                 del fm_observables
 
             Validation_values.chi2_new_obs[name_mol] = {}
 
-            args = (data_test.mol[name_mol].ref, Details_train.weights_new[name_mol], g[name_mol], data_test.mol[name_mol].gexp_new)
+            args = (data_valid.mol[name_mol].ref, Details_train.weights_new[name_mol], g[name_mol], data_valid.mol[name_mol].gexp_new)
             out = compute_chi2(*args)[0]
 
-            log_fact_Z = data_test.mol[name_mol].logZ + Validation_values.logZ_new[name_mol]
+            log_fact_Z = data_valid.mol[name_mol].logZ + Validation_values.logZ_new[name_mol]
             - Details_train.logZ_new[name_mol] - data_train.mol[name_mol].logZ
 
             if hasattr(Validation_values, 'logZ_P'):
-                log_fact_Z += Validation_values.logZ_P_test[name_mol] - Details_train.logZ_P[name_mol]
+                log_fact_Z += Validation_values.logZ_P_valid[name_mol] - Details_train.logZ_P[name_mol]
 
-            for name_type in data_test.mol[name_mol].n_experiments.keys():
+            for name_type in data_valid.mol[name_mol].n_experiments.keys():
                 Validation_values.avg_new_obs[name_mol][name_type] = 1/(1+np.exp(log_fact_Z))*out[name_type]
                 + 1/(1+np.exp(-log_fact_Z))*Validation_values.avg_new_obs[name_mol][name_type]
 
                 Validation_values.chi2_new_obs[name_mol][name_type] = np.sum(((
                     Validation_values.avg_new_obs[name_mol][name_type]
-                    - data_test.mol[name_mol].gexp_new[name_type][:, 0])/data_test.mol[name_mol].gexp_new[name_type][:, 1])**2)
+                    - data_valid.mol[name_mol].gexp_new[name_type][:, 0])/data_valid.mol[name_mol].gexp_new[name_type][:, 1])**2)
 
-    if which_return == 'chi2 test':
+    if which_return == 'chi2 validation':
         tot_chi2 = 0
         for s1 in Validation_values.chi2_new_obs.keys():
             for item in Validation_values.chi2_new_obs[s1].values():

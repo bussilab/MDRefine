@@ -15,7 +15,7 @@ from jax import config
 config.update("jax_enable_x64", True)
 
 from .loss_and_minimizer import compute_js, compute_new_weights, gamma_function, loss_function, minimizer
-from .loss_and_minimizer import select_traintest, validation
+from .loss_and_minimizer import split_dataset, validation
 
 # %% D. (automatic) optimization of the hyper parameters through minimization of chi2
 
@@ -256,10 +256,10 @@ def compute_hyperderivatives(
 def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gamma, which_set):
     """
     This function is an internal tool used in `compute_hypergradient` and `hyper_minimizer`
-    to compute the total chi2 (float variable) for the training or test data set and its derivatives
+    to compute the total chi2 (float variable) for training or validation data set and its derivatives
     (with respect to `pars_ff_fm` and `lambdas`). The choice of the data set is indicated by `which_set`
-    (`which_set = 'training'` for chi2 on the training set, `'validation'` for chi2 on training observables and test frames,
-    `'test'` for chi2 on test observables and test frames, through validation function).
+    (`which_set = 'training'` for chi2 on the training set, `'valid_frames'` for chi2 on training observables and validation frames,
+    `'validation'` for chi2 on validation observables and validation frames, through validation function).
 
     Parameters
     ----------
@@ -277,9 +277,9 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
         Values of the hyperparameters.
     
     which_set: str
-        String variable, chosen among `'training'`, `'validation'` or `'test'` as explained above.
+        String variable, chosen among `'training'`, `'valid_frames'` or `'valid'` as explained above.
     """
-    if which_set == 'training' or which_set == 'validation':
+    if which_set == 'training' or which_set == 'valid_frames':
         tot_chi2 = 0
 
         Details = loss_function(pars_ff_fm, data, regularization, alpha, beta, gamma, fixed_lambdas=lambdas, if_save=True)
@@ -288,11 +288,11 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
             for item in Details.chi2[s1].values():
                 tot_chi2 += item
 
-    elif which_set == 'test':
+    elif which_set == 'validation':
 
         tot_chi2 = validation(
             pars_ff_fm, lambdas, data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
-            which_return='chi2 test')
+            which_return='chi2 validation')
 
     assert tot_chi2, 'error in compute_chi2_tot' + which_set
 
@@ -359,7 +359,7 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
 
 def compute_hypergradient(
         pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
-        which_set, data_test, derivatives_funs):
+        which_set, data_valid, derivatives_funs):
     """
     This is an internal tool of `mini_and_chi2_and_grad`, which employs previously defined functions (`compute_hyperderivatives`, `compute_chi2_tot`,
     `put_together`) to return selected chi2 and its gradient w.r.t hyperparameters.
@@ -385,8 +385,8 @@ def compute_hypergradient(
     which_set: str
         String indicating which set defines the chi2 to minimize in order to get the optimal hyperparameters (see in `compute_chi2_tot`).
     
-    data_test: class instance
-        The test data set object, which is required to compute the chi2 on the test set (when `which_set == 'validation' or 'test'`;
+    data_valid: class instance
+        The validation data set object, which is required to compute the chi2 on the validation set (when `which_set == 'valid_frames' or 'validation'`;
         otherwise, if `which_set = 'training'`, it is useless, so it can be set to `None`).
     
     derivatives_funs: class instance
@@ -426,11 +426,11 @@ def compute_hypergradient(
 
     """ compute chi2 and its derivatives w.r.t. pars"""
 
-    assert which_set in ['training', 'validation', 'test'], 'error on which_set'
+    assert which_set in ['training', 'valid_frames', 'validation'], 'error on which_set'
     if which_set == 'training':
         my_data = data_train
     else:
-        my_data = data_test
+        my_data = data_valid
 
     my_args = (
         pars_ff_fm, lambdas_vec, my_data, regularization, 10**(log10_alpha), 10**(log10_beta),
@@ -468,7 +468,7 @@ def compute_hypergradient(
 # %% D5. mini_and_chi2_and_grad
 
 def mini_and_chi2_and_grad(
-        data, test_frames, test_obs, regularization, alpha, beta, gamma,
+        data, valid_frames, valid_obs, regularization, alpha, beta, gamma,
         starting_pars, which_set, derivatives_funs):
     """
     This is an internal tool of `hyper_function` which minimizes the loss function at given hyperparameters, computes the chi2 and
@@ -479,8 +479,8 @@ def mini_and_chi2_and_grad(
     data : class instance
         Class instance which constitutes the `data` object.
     
-    test_frames, test_obs : dicts
-        Dictionaries for test frames and test observables (for a given `random_state`).
+    valid_frames, valid_obs : dicts
+        Dictionaries for validation frames and validation observables (for a given `random_state`).
 
     regularization : dict
         Dictionary for the regularizations (see in `MDRefinement`).
@@ -492,14 +492,14 @@ def mini_and_chi2_and_grad(
         Numpy 1-dimensional array for starting values of the coefficients in `minimizer`.
 
     which_set : str
-        String among `'training'`, `'validation'` or `'test'` (see in `MDRefinement`).
+        String among `'training'`, `'valid_frames'` or `'valid'` (see in `MDRefinement`).
 
     derivatives_funs : class instance
         Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax Autodiff.
     """
-    out = select_traintest(data, test_frames=test_frames, test_obs=test_obs)
+    out = split_dataset(data, valid_frames=valid_frames, valid_obs=valid_obs)
     data_train = out[0]
-    data_test = out[1]
+    data_valid = out[1]
 
     mini = minimizer(
         data_train, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma, starting_pars=starting_pars)
@@ -515,7 +515,7 @@ def mini_and_chi2_and_grad(
 
     chi2, gradient = compute_hypergradient(
         pars_ff_fm, lambdas, np.log10(alpha), np.log10(beta), np.log10(gamma), data_train, regularization,
-        which_set, data_test, derivatives_funs)
+        which_set, data_valid, derivatives_funs)
 
     return mini, chi2, gradient
 
@@ -523,7 +523,7 @@ def mini_and_chi2_and_grad(
 
 
 def hyper_function(
-        log10_hyperpars, map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs,
+        log10_hyperpars, map_hyperpars, data, regularization, valid_obs, valid_frames, which_set, derivatives_funs,
         starting_pars, n_parallel_jobs):
     """
     This function is an internal tool of `hyper_minimizer` which determines the optimal parameters by minimizing the loss function at given hyperparameters;
@@ -545,8 +545,8 @@ def hyper_function(
     regularization: dict
         Dictionaries for `regularization` object.
     
-    test_obs, test_frames: dicts
-        Dictionaries for test observables and test frames, indicized by seeds.
+    valid_obs, valid_frames: dicts
+        Dictionaries for validation observables and validation frames, indicized by seeds.
     
     which_set: str
         String, see for `compute_chi2_tot`.
@@ -618,15 +618,15 @@ def hyper_function(
     # chi2 = []
     # gradient = []  # derivatives of chi2 w.r.t. (log10) hyper parameters
 
-    # args = (data, test_frames[i], test_obs[i], regularization, alpha, beta, gamma, starting_pars,
+    # args = (data, valid_frames[i], valid_obs[i], regularization, alpha, beta, gamma, starting_pars,
     # which_set, derivatives_funs)
-    random_states = test_obs.keys()
+    random_states = valid_obs.keys()
 
     if n_parallel_jobs is None:
-        n_parallel_jobs = len(test_obs)
+        n_parallel_jobs = len(valid_obs)
 
     output = Parallel(n_jobs=n_parallel_jobs)(delayed(mini_and_chi2_and_grad)(
-        data, test_frames[seed], test_obs[seed], regularization, alpha, beta, gamma, starting_pars,
+        data, valid_frames[seed], valid_obs[seed], regularization, alpha, beta, gamma, starting_pars,
         which_set, derivatives_funs) for seed in random_states)
 
     Results = [output[i][0] for i in range(len(random_states))]
@@ -661,11 +661,11 @@ def hyper_function(
 
 def hyper_minimizer(
         data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf,
-        regularization=None, random_states=1, replica_infos=None, which_set='validation',
+        regularization=None, random_states=1, replica_infos=None, which_set='valid_frames',
         gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None):
     """
-    This tool optimizes the hyperparameters by minimizing the selected chi2 (training, validation or test)
-    over several (randomly) splits of the full data set into training/test set.
+    This tool optimizes the hyperparameters by minimizing the selected chi2 ('training', 'valid_frames' or 'validation')
+    over several (randomly) splits of the full data set into training/validation set.
 
     Parameters
     ----------
@@ -679,13 +679,13 @@ def hyper_minimizer(
         Dictionary for the defined regularizations of force-field and forward-model corrections (`None` by default); see for `MDRefinement`.
     
     replica_infos : dict
-        Dictionary with information required to split frames following continuous trajectories in replica exchange ("demuxing"); see `select_traintest` for further details.
+        Dictionary with information required to split frames following continuous trajectories in replica exchange ("demuxing"); see `split_dataset` for further details.
 
     random_states : int or list
-        Random states (i.e., seeds) used in `select_traintest` to split the data set into training and test set (see `MDRefinement`); 1 by default.
+        Random states (i.e., seeds) used in `split_dataset` to split the data set into training and validation set (see `MDRefinement`); 1 by default.
     
     which_set : str
-        String choosen among `'training'`, `'validation'`, `'test'` (see in `MDRefinement`); `validation` by default.
+        String choosen among `'training'`, `'valid_frames'`, `'valid'` (see in `MDRefinement`); `validation` by default.
     
     gtol : float
         Tolerance `gtol` of `scipy.optimize.minimize` (0.5 by default).
@@ -721,15 +721,15 @@ def hyper_minimizer(
     if type(random_states) is int:
         random_states = [i for i in range(random_states)]
 
-    """ select training and test set (several seeds) """
+    """ select training and validation set (several seeds) """
 
-    test_obs = {}
-    test_frames = {}
+    valid_obs = {}
+    valid_frames = {}
 
     for seed in random_states:
-        out = select_traintest(data, random_state=seed, replica_infos=replica_infos)
-        test_obs[seed] = out[2]
-        test_frames[seed] = out[3]
+        out = split_dataset(data, random_state=seed, replica_infos=replica_infos)
+        valid_obs[seed] = out[2]
+        valid_frames[seed] = out[3]
         # here you could check to not have repeated choices
 
     """ derivatives """
@@ -779,11 +779,11 @@ def hyper_minimizer(
 
     # minimize
     args = (
-        map_hyperpars, data, regularization, test_obs, test_frames, which_set, derivatives_funs,
+        map_hyperpars, data, regularization, valid_obs, valid_frames, which_set, derivatives_funs,
         starting_pars, n_parallel_jobs)
 
     # just to check:
-    # out = hyper_function(log10_hyperpars0, map_hyperpars, data, regularization, test_obs, test_frames, which_set,
+    # out = hyper_function(log10_hyperpars0, map_hyperpars, data, regularization, valid_obs, valid_frames, which_set,
     # derivatives_funs, starting_pars)
 
     """ see https://docs.scipy.org/doc/scipy/reference/optimize.minimize-bfgs.html """

@@ -22,7 +22,7 @@ from .loss_and_minimizer import minimizer
 def MDRefinement(
         infos: dict, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
-        random_states = 5, which_set: str = 'test', gtol: float = 0.5, ftol: float = 0.05,
+        random_states = 5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
         results_folder_name: str = 'results', n_parallel_jobs: int = None):
     """
     This is the main tool of the package: it loads data, searches for the optimal hyperparameters and minimizes the loss function on the whole data set
@@ -53,9 +53,9 @@ def MDRefinement(
         Random states (i.e., seeds) used to split the data set in cross validation (if integer, then `random_states = np.arange(random_states)`.
     
     which_set: str
-        String chosen among `'training'`, `'validation'` or `'test'`, which specifies how to determine optimal hyperparameters:
-        if minimizing the (average) chi2 on the training set for `'training'`, on training observables and test frames for `'validation'`,
-        on test observables for `'test'`.
+        String chosen among `'training'`, `'valid_frames'` or `'validation'`, which specifies how to determine optimal hyperparameters:
+        if minimizing the (average) chi2 on the training set for `'training'`, on training observables and validation frames for `'valid_frames'`,
+        on validation observables for `'validation'`.
     
     gtol: float
         Tolerance `gtol` (on the gradient) of scipy.optimize.minimize (0.5 by default).
@@ -73,7 +73,7 @@ def MDRefinement(
     data = load_data(infos, stride=stride)
 
     # compute tot. n. of observables: if it is 1, then do just minimizer, otherwise do cross validation
-    # No: you can do cross validation also for 1 observable, in this case force which_set to 'test',
+    # No: you can do cross validation also for 1 observable, in this case force which_set to 'validation',
     # namely, do cross validation on frames
 
     tot = data.properties.tot_n_experiments(data)
@@ -230,9 +230,9 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
     title = list(vars(Result).keys())
 
     remove_list = [
-        'intermediates', 'abs_difference', 'av_g', 'logZ_new', 'weights_new', 'abs_difference_test',
-        'av_g_test', 'logZ_new_test', 'weights_new_test', 'avg_new_obs', 'weights_P', 'logZ_P', 'weights_P_test',
-        'logZ_P_test']
+        'intermediates', 'abs_difference', 'av_g', 'logZ_new', 'weights_new', 'abs_difference_valid',
+        'av_g_valid', 'logZ_new_valid', 'weights_new_valid', 'avg_new_obs', 'weights_P', 'logZ_P', 'weights_P_validation',
+        'logZ_P_valid']
 
     if hasattr(Result, 'weights_new'):
         for name_sys in Result.weights_new.keys():
@@ -259,13 +259,13 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
             elif s == 'minis':
                 for name_sys in Result.minis.keys():
                     my_dict['ER success %s' % name_sys] = Result.minis[name_sys].success
-            elif s == 'D_KL_alpha' or s == 'D_KL_alpha_test':
+            elif s == 'D_KL_alpha' or s == 'D_KL_alpha_valid':
                 for name_sys in vars(Result)[s].keys():
                     my_dict[s + '_' + name_sys] = vars(Result)[s][name_sys]
-            elif s == 'chi2' or s == 'chi2_test' or s == 'chi2_new_obs':
+            elif s == 'chi2' or s == 'chi2_valid' or s == 'chi2_new_obs':
                 for name_sys in vars(Result)[s].keys():
                     my_dict[s + '_' + name_sys] = np.sum(np.array(list(vars(Result)[s][name_sys].values())))
-            elif s == 'reg_ff' or s == 'reg_ff_test':
+            elif s == 'reg_ff' or s == 'reg_ff_valid':
                 if type(vars(Result)[s]) is dict:
                     for k in vars(Result)[s].keys():
                         my_dict[s + '_' + k] = vars(Result)[s][k]
