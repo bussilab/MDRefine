@@ -1,5 +1,5 @@
 
-for file in Tutorial*.ipynb
+for file in Tutorial_1.ipynb
 do
 
     jupyter nbconvert --to notebook --execute $file &&
