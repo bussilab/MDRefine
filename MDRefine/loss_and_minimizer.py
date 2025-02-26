@@ -1464,7 +1464,7 @@ def split_dataset(
         if valid_replicas == {}:
             del valid_replicas
 
-    else:
+    elif (valid_frames is None) and (valid_frames == 0):
         valid_frames = {}
         for name_mol in system_names:
             valid_frames[name_mol] = np.int64(np.array([]))
@@ -1554,7 +1554,7 @@ def split_dataset(
 
         data_train.mol[name_mol] = class_train(data_.mol[name_mol], valid_frames[name_mol], valid_obs[name_mol])
 
-        if valid_frames[name_mol].shape == (0, ) :
+        if valid_frames[name_mol].shape == (0, ):
             data_valid.mol[name_mol] = class_test(data_.mol[name_mol], valid_obs[name_mol])
         
         else:
@@ -1582,8 +1582,11 @@ def split_dataset(
 
         for s2 in my_list1:
             """ no validation observables of this kind """
-            del data_valid.mol[s1].gexp_new[s2], data_valid.mol[s1].g_new[s2], data_valid.mol[s1].n_experiments_new[s2]
-            del data_valid.mol[s1].selected_obs_new[s2]  # , data_valid[s1].names_new[s2]
+            try:
+                del data_valid.mol[s1].gexp_new[s2], data_valid.mol[s1].g_new[s2], data_valid.mol[s1].n_experiments_new[s2]
+                del data_valid.mol[s1].selected_obs_new[s2]  # , data_valid[s1].names_new[s2]
+            except: None
+            
 
         for s2 in my_list2:
             """ no training observables of this kind"""
