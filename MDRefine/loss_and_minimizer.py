@@ -1288,6 +1288,65 @@ class class_train:
         self.temperature = data_mol.temperature
 
 
+class class_test:
+    """
+    Class for test data set, with similar structure as `data_class`.
+    """
+    def __init__(self, data_mol, test_obs_mol):
+
+        # A. weights
+        w = data_mol.weights
+        
+        self.logZ = np.log(np.sum(w))
+        self.weights = w/np.sum(w)
+        self.n_frames = np.shape(w)[0]
+
+        # B. split force-field terms
+        if hasattr(data_mol, 'f'):
+            self.ff_correction = data_mol.ff_correction
+            self.f = data_mol.f
+
+        # C. split experimental values gexp, normg_mean and normg_std, observables g
+
+        if hasattr(data_mol, 'gexp'):
+            self.gexp = {}
+            self.n_experiments = {}
+
+            for name_type in data_mol.gexp.keys():
+                try:
+                    self.gexp[name_type] = data_mol.gexp[name_type][list(test_obs_mol[name_type])]
+                except:
+                    self.gexp[name_type] = data_mol.gexp[name_type][test_obs_mol[name_type]]
+
+                self.n_experiments[name_type] = len(test_obs_mol[name_type])
+
+        if hasattr(data_mol, 'names'):
+            self.names = {}
+
+            for name_type in data_mol.names.keys():
+                self.names[name_type] = data_mol.names[name_type][list(test_obs_mol[name_type])]
+
+        if hasattr(data_mol, 'g'):
+            self.g = {}
+
+            for name_type in data_mol.g.keys():
+                self.g[name_type] = data_mol.g[name_type][:, test_obs_mol[name_type]]
+
+        if hasattr(data_mol, 'forward_qs'):
+            self.forward_qs = {}
+
+            for name_type in data_mol.forward_qs.keys():
+                self.forward_qs[name_type] = data_mol.forward_qs[name_type]
+
+        if hasattr(data_mol, 'forward_model'):
+            self.forward_model = data_mol.forward_model
+
+        self.ref = copy.deepcopy(data_mol.ref)
+        self.ref_all = copy.deepcopy(data_mol.ref)
+        self.selected_obs_new = test_obs_mol
+        self.temperature = data_mol.temperature
+
+
 def split_dataset(
         data, *, valid_frames_size: float = 0.2, valid_obs_size: float = 0.2, random_state: int = None,
         valid_frames: dict = None, valid_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None):
@@ -1338,38 +1397,31 @@ def split_dataset(
     system_names = data.properties.system_names
     rng = None
 
-    if (valid_frames is None) or (valid_obs is None):
-
-        if random_state is None:
-            # try:
-            random_state = random.randint(1000)
-            # except:
-            #     print('error: Jax requires to specify random state')
-            #     return
-            print('random_state: ', random_state)
-
-        rng = random.default_rng(seed=random_state)
-        # except: key = random.PRNGKey(random_state)
-
+    if valid_obs is None:
         assert (valid_obs_size > 0 and valid_obs_size < 1), 'error on valid_obs_size'
-        assert (valid_frames_size > 0 and valid_frames_size < 1), 'error on valid_frames_size'
-
-        # check_consistency(valid_obs_size,data.n_experiments,0,data.g)
-        # check_consistency(valid_frames_size,data.n_frames,1,data.g)
-
-        if valid_frames is not None:
-            print('Input random_state employed only for valid_obs since valid_frames are given')
-        elif valid_obs is not None:
-            print('Input random_state employed only for valid_frames since valid_obs are given')
-        else:
-            print('Input random_state employed both for valid_obs and valid_frames')
-
-    elif random_state is not None:
-        print('Input random_state not employed, since both valid_frames and valid_obs are given')
-
-    # 1B. FRAMES VALIDATION
-
     if valid_frames is None:
+        assert (valid_frames_size >= 0 and valid_frames_size < 1), 'error on valid_frames_size'
+        if valid_frames_size == 0: print('split observables only (not frames)')
+    
+    if (valid_obs is None) or ((valid_frames is None) and valid_frames_size != 0):
+        # namely, if you have to randomly select something
+        if random_state is None:
+            random_state = random.randint(1000)
+            print('random state: ', random_state)
+        rng = random.default_rng(seed=random_state)
+    
+    if (valid_obs is None) and (valid_frames is None) and (valid_frames_size != 0):
+        print('Input random_state employed both for valid_obs and valid_frames')
+    elif (valid_obs is None) and (valid_frames is not None or valid_frames_size == 0):
+        print('Input random_state employed for valid_obs only')  #  since valid_frames are given')
+    elif (valid_obs is not None) and (valid_frames is None) and (valid_frames_size != 0):
+        print('Input random_state employed only for valid_frames since valid_obs are given')
+    elif (valid_obs is not None) and (valid_frames is not None or valid_frames_size == 0):
+        print('Input random_state will not be used')  # , since both valid_frames and valid_obs are given')
+
+    # 1B. SELECT VALIDATING FRAMES
+
+    if (valid_frames is None) and (valid_frames_size != 0):
 
         valid_frames = {}
         valid_replicas = {}
@@ -1403,7 +1455,6 @@ def split_dataset(
                 del fin
 
             else:
-
                 n_frames_valid = np.int16(np.round(valid_frames_size*data.mol[name_mol].n_frames))
                 valid_frames[name_mol] = np.sort(rng.choice(data.mol[name_mol].n_frames, n_frames_valid, replace=False))
                 # except:
@@ -1413,7 +1464,12 @@ def split_dataset(
         if valid_replicas == {}:
             del valid_replicas
 
-    # 1C. OBSERVABLES VALIDATION
+    else:
+        valid_frames = {}
+        for name_mol in system_names:
+            valid_frames[name_mol] = np.int64(np.array([]))
+
+    # 1C. SELECT VALIDATING/TEST OBSERVABLES
 
     if (valid_obs is None) or (valid_obs == []):
 
@@ -1497,8 +1553,13 @@ def split_dataset(
     for name_mol in system_names:
 
         data_train.mol[name_mol] = class_train(data_.mol[name_mol], valid_frames[name_mol], valid_obs[name_mol])
-        data_valid.mol[name_mol] = class_validation(
-            data_.mol[name_mol], valid_frames[name_mol], valid_obs[name_mol], if_all_frames, data_train.mol[name_mol])
+
+        if valid_frames[name_mol].shape == (0, ) :
+            data_valid.mol[name_mol] = class_test(data_.mol[name_mol], valid_obs[name_mol])
+        
+        else:
+            data_valid.mol[name_mol] = class_validation(
+                data_.mol[name_mol], valid_frames[name_mol], valid_obs[name_mol], if_all_frames, data_train.mol[name_mol])
 
     # """ if some type of observables are not included in validation observables, delete them to avoid empty items """
     # for name_mol in system_names:
@@ -1538,7 +1599,10 @@ def split_dataset(
             valid_obs[s1][s2] = np.int64(np.array([]))
 
     # if pos_replicas is None:
-    return data_train, data_valid, valid_obs, valid_frames
+    if valid_frames is not None:
+        return data_train, data_valid, valid_obs, valid_frames
+    else:
+        return data_train, data_valid, valid_obs, valid_frames
     # else:
     #     return data_train, data_valid, valid_obs, valid_frames, valid_rep
 
