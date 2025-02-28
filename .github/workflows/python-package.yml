@@ -28,8 +28,10 @@ jobs:
       run: |
         pip install pytest
         pytest -v
-        # run also jupyter notebooks
-        ( cd Examples && ./rerun.sh )
+    - name: Test notebooks
+      run: |
+        ( cd Examples && bash rerun.sh )
+        # ( cd Examples && ./rerun.sh )
     - name: Pylint
       run: |
         pip install --upgrade  pylint
