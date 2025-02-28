@@ -1,8 +1,8 @@
 
-# for file in Tutorial*.ipynb
-# do
+for file in Tutorial_1b.ipynb
+do
 
-#     jupyter nbconvert --to notebook --execute $file &&
-#     mv ${file%.ipynb}.nbconvert.ipynb $file
+    jupyter nbconvert --to notebook --execute $file &&
+    mv ${file%.ipynb}.nbconvert.ipynb $file
 
-# done
+done
