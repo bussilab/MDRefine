@@ -1349,7 +1349,7 @@ class class_test:
 
 def split_dataset(
         data, *, valid_frames_size: float = 0.2, valid_obs_size: float = 0.2, random_state: int = None,
-        valid_frames: dict = None, valid_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None):
+        valid_frames: dict = None, valid_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None, if_verbose: bool = True):
     """
     This tool splits the data set into training and validation set.
     You can either randomly select the frames and/or the observables (accordingly to `valid_frames_size`, `valid_obs_size`, `random_state`)
@@ -1410,14 +1410,15 @@ def split_dataset(
             print('random state: ', random_state)
         rng = random.default_rng(seed=random_state)
     
-    if (valid_obs is None) and (valid_frames is None) and (valid_frames_size != 0):
-        print('Input random_state employed both for valid_obs and valid_frames')
-    elif (valid_obs is None) and (valid_frames is not None or valid_frames_size == 0):
-        print('Input random_state employed for valid_obs only')  #  since valid_frames are given')
-    elif (valid_obs is not None) and (valid_frames is None) and (valid_frames_size != 0):
-        print('Input random_state employed only for valid_frames since valid_obs are given')
-    elif (valid_obs is not None) and (valid_frames is not None or valid_frames_size == 0):
-        print('Input random_state will not be used')  # , since both valid_frames and valid_obs are given')
+    if if_verbose:
+        if (valid_obs is None) and (valid_frames is None) and (valid_frames_size != 0):
+            print('Input random_state employed both for valid_obs and valid_frames')
+        elif (valid_obs is None) and (valid_frames is not None or valid_frames_size == 0):
+            print('Input random_state employed for valid_obs only')  #  since valid_frames are given')
+        elif (valid_obs is not None) and (valid_frames is None) and (valid_frames_size != 0):
+            print('Input random_state employed only for valid_frames since valid_obs are given')
+        elif (valid_obs is not None) and (valid_frames is not None or valid_frames_size == 0):
+            print('Input random_state will not be used')  # , since both valid_frames and valid_obs are given')
 
     # 1B. SELECT VALIDATING FRAMES
 
@@ -1464,7 +1465,7 @@ def split_dataset(
         if valid_replicas == {}:
             del valid_replicas
 
-    elif (valid_frames is None) and (valid_frames == 0):
+    elif (valid_frames is None) and (valid_frames_size == 0):
         valid_frames = {}
         for name_mol in system_names:
             valid_frames[name_mol] = np.int64(np.array([]))

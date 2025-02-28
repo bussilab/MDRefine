@@ -497,7 +497,7 @@ def mini_and_chi2_and_grad(
     derivatives_funs : class instance
         Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax Autodiff.
     """
-    out = split_dataset(data, valid_frames=valid_frames, valid_obs=valid_obs)
+    out = split_dataset(data, valid_frames=valid_frames, valid_obs=valid_obs, if_verbose=False)
     data_train = out[0]
     data_valid = out[1]
 

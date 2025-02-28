@@ -552,6 +552,12 @@ def load_data(infos, *, stride=1):
 
 
 def check_consistency(data):
+    """
+    This tool computes the `distances` between the values of the observables in each frame and the experimental values,
+    normalized by the experimental error (similarly to the chi2). In addition, it computes the `fraction` of frames
+    within the ``experimental region" (exp. value +- error), printing a message `accepted' if this fraction is
+    greater than a given threshold 0.005.
+    """
 
     distances = {}
     fractions = {}

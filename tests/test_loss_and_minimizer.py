@@ -1,6 +1,6 @@
 import unittest
-import MDRefine
-from MDRefine import compute_new_weights, compute_chi2, compute_D_KL, l2_regularization
+# import MDRefine
+from MDRefine import compute_new_weights, compute_D_KL, l2_regularization  # , compute_chi2
 import scipy
 
 class my_testcase(unittest.TestCase):
