@@ -31,8 +31,7 @@ jobs:
     - name: Test notebooks
       run: |
         pip install jupyter
-        ( cd Examples && bash rerun.sh )
-        # ( cd Examples && ./rerun.sh )
+        ( cd Examples && bash requirements.sh && bash rerun.sh )
     - name: Pylint
       run: |
         pip install --upgrade  pylint
