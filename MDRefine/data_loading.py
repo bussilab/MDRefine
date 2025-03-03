@@ -549,37 +549,3 @@ def load_data(infos, *, stride=1):
     print('done')
 
     return data
-
-
-def check_consistency(data):
-    """
-    This tool computes the `distances` between the values of the observables in each frame and the experimental values,
-    normalized by the experimental error (similarly to the chi2). In addition, it computes the `fraction` of frames
-    within the ``experimental region" (exp. value +- error), printing a message `accepted' if this fraction is
-    greater than a given threshold 0.005.
-    """
-
-    distances = {}
-    fractions = {}
-
-    for name_mol in data.mol.keys():
-        my_vec = {}
-
-        for s in data.mol[name_mol].g.keys():
-            my_vec[s] = (data.mol[name_mol].g[s] - data.mol[name_mol].gexp[s][:, 0])/data.mol[name_mol].gexp[s][:, 1]
-
-        my_vec = np.hstack(([my_vec[s] for s in data.mol[name_mol].g.keys()]))
-        dist = np.linalg.norm(my_vec, axis=1)/my_vec.shape[1]
-
-        wh = np.where(dist < 1)[0]
-        fraction = len(wh)/len(dist)
-
-        if fraction > 5e-3: message = 'acceptable'
-        else: message = 'non acceptable'
-
-        print('the fraction of frames inside the experimental region of %s is %s (%s)' % (name_mol, fraction, message))
-
-        distances[name_mol] = dist
-        fractions[name_mol] = fraction
-
-    return distances, fractions

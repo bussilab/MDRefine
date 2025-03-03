@@ -1431,7 +1431,7 @@ def split_dataset(
 
             if (replica_infos is not None) and (hasattr(replica_infos, name_mol)) and ('n_temp_replica' in replica_infos[name_mol].keys()):
                 # if you have demuxed trajectories, select replicas and the corresponding frames
-                # pos_replcias has the indices corresponding to the different replicas
+                # pos_replicas has the indices corresponding to the different replicas
 
                 path = replica_infos['global']['path_directory']
                 stride = replica_infos['global']['stride']
