@@ -913,11 +913,14 @@ def print_references(alpha, beta, gamma, if_ddg):
     refs = ['Ensemble Refinement', 'Force-Field Fitting', 'Ensemble Refinement + Force-Field Fitting',
         'Ensemble + Forward-Model Refinement', 'Refinement with alchemical calculations', 'MDRefine package']
 
-    path = os.path.dirname(os.path.realpath(__file__)) + '/references'
-    # if os.getcwd()[-8:] == 'Examples' or os.getcwd()[-4:] == 'tests': path = '../MDRefine/references'
-    # else: path = 'MDRefine/references'
+    # path = os.path.dirname(os.path.realpath(__file__)) + '/references'
+    
+    print(os.getcwd(), os.listdir())
 
-    # print(os.listdir(path))
+    if os.getcwd()[-8:] == 'Examples' or os.getcwd()[-4:] == 'tests': path = '../MDRefine/references'
+    else: path = 'MDRefine/references'
+
+    print(os.listdir(path))
     
     my_strings = [refs[5]]
 
