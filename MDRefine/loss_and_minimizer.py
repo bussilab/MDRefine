@@ -915,10 +915,14 @@ def print_references(alpha, beta, gamma, if_ddg):
 
     # path = os.path.dirname(os.path.realpath(__file__)) + '/references'
     
-    print(os.getcwd(), os.listdir())
+    path = os.getcwd()
 
-    if os.getcwd()[-8:] == 'Examples' or os.getcwd()[-4:] == 'tests': path = '../MDRefine/references'
-    else: path = 'MDRefine/references'
+    print('here', os.getcwd(), os.listdir())
+
+    if os.getcwd()[-8:] == 'Examples': path = path[:-8]
+    elif os.getcwd()[-5:] == 'tests': path = path[:-5]
+    
+    path = path + '/MDRefine/references'
 
     print(os.listdir(path[:-11]))
     
