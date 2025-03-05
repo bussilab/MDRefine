@@ -4,6 +4,7 @@ It defines the loss functions and minimizes it.
 It includes also `split_dataset` and `validation`.
 """
 
+import os
 import copy
 import time
 import numpy.random as random
@@ -912,7 +913,8 @@ def print_references(alpha, beta, gamma, if_ddg):
     refs = ['Ensemble Refinement', 'Force-Field Fitting', 'Ensemble Refinement + Force-Field Fitting',
         'Ensemble + Forward-Model Refinement', 'Refinement with alchemical calculations', 'MDRefine package']
 
-    path = '../MDRefine/references'
+    if os.getcwd()[-8:] == 'Examples': path = '../MDRefine/references'
+    else: path = 'references'
 
     my_strings = [refs[5]]
 
