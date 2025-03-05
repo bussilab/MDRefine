@@ -9,6 +9,8 @@ import time
 import numpy.random as random
 from scipy.optimize import minimize
 
+# import os
+
 # numpy is required for loadtxt and for gradient arrays with L-BFGS-B minimization (rather than jax.numpy)
 import numpy
 import jax
@@ -790,7 +792,7 @@ def loss_function(
 
 def loss_function_and_grad(
         pars: numpy.ndarray, data: dict, regularization: dict, alpha: float, beta: float, gamma: float,
-        gtol_inn: float, boundaries: dict, gradient_fun):
+        gtol_inn: float, boundaries: dict, gradient_fun, if_print: bool = False):
     """
     This tool returns `loss_function` and its gradient; the gradient function, which is going to be evaluated, is computed by Jax and passed as input variable `gradient_fun`.
     If `not np.isinf(alpha)`, it appends also loss and lambdas to `intermediates.loss` and `intermediates.lambdas`, respectively.
@@ -818,9 +820,6 @@ def loss_function_and_grad(
     gradient_fun: function
         Gradient function of `loss_function`, computed by Jax.
     """
-    print('New evaluation:')
-    # print('alpha, beta, gamma: ', alpha, beta, gamma)
-    # print('pars: ', pars)
 
     loss = loss_function(pars, data, regularization, alpha, beta, gamma, None, gtol_inn, False, boundaries)
 
@@ -839,8 +838,12 @@ def loss_function_and_grad(
     the derivative coming from lambdas is zero) """
     gradient = gradient_fun(pars, data, regularization, alpha=alpha, beta=beta, gamma=gamma, fixed_lambdas=lambdas)
 
-    print('loss: ', loss)
-    print('gradient: ', gradient, '\n')
+    if if_print:
+        print('New evaluation:')
+        # print('alpha, beta, gamma: ', alpha, beta, gamma)
+        # print('pars: ', pars)
+        print('loss: ', loss)
+        print('gradient: ', gradient, '\n')
 
     return loss, gradient
 
@@ -904,10 +907,45 @@ class intermediates_class:
             self.lambdas = []
             self.minis = []
 
+def print_references(alpha, beta, gamma, if_ddg):
+
+    refs = ['Ensemble Refinement', 'Force-Field Fitting', 'Ensemble Refinement + Force-Field Fitting',
+        'Ensemble + Forward-Model Refinement', 'Refinement with alchemical calculations', 'MDRefine package']
+
+    path = '../MDRefine/references'
+
+    my_strings = [refs[5]]
+
+    if np.isfinite(alpha): my_strings.append(refs[0])
+    if np.isfinite(beta): my_strings.append(refs[1])
+    if np.isfinite(alpha) and np.isfinite(beta): my_strings.append(refs[2])
+    if np.isfinite(alpha) and np.isfinite(gamma): my_strings.append(refs[3])
+    if np.isfinite(beta) and if_ddg: my_strings.append(refs[4])
+
+    for s in my_strings:
+        s1 = 'References for ' + s + ':'
+        print(s1)
+
+        with open(path) as infile:
+            copy = False
+            for line in infile:
+                if line.startswith(s1):
+                    copy = True
+                    continue
+                elif line.startswith("References"):
+                    copy = False
+                    continue
+                elif copy:
+                    print(line)
+
+    print('--------------------------------------------------------------------------')
+
+    return None
+
 
 def minimizer(
         original_data, *, regularization: dict = None, alpha: float = +numpy.inf, beta: float = +numpy.inf, gamma: float = +numpy.inf,
-        gtol: float = 1e-3, gtol_inn: float = 1e-3, data_valid: dict = None, starting_pars: numpy.ndarray = None):
+        gtol: float = 1e-3, gtol_inn: float = 1e-3, data_valid: dict = None, starting_pars: numpy.ndarray = None, if_print_biblio: bool = True):
     """
     This tool minimizes loss_function on `original_data` and do `validation` on `data_valid` (if `not None`), at given hyperparameters.
 
@@ -934,6 +972,8 @@ def minimizer(
     assert alpha > 0, 'alpha must be > 0'
     assert beta >= 0, 'beta must be >= 0'
     assert gamma >= 0, 'gamma must be >= 0'
+
+    if if_print_biblio: print_references(alpha, beta, gamma, hasattr(original_data.properties, 'cycle_names'))
 
     time1 = time.time()
 

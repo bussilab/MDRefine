@@ -14,7 +14,7 @@ config.update("jax_enable_x64", True)
 
 from .data_loading import load_data
 from .hyperminimizer import hyper_minimizer
-from .loss_and_minimizer import minimizer
+from .loss_and_minimizer import minimizer, print_references
 
 # %% D8. MDRefinement
 
@@ -72,6 +72,8 @@ def MDRefinement(
     """
     data = load_data(infos, stride=stride)
 
+    print_references(starting_alpha, starting_beta, starting_gamma, hasattr(data.properties, 'cycle_names'))
+
     # compute tot. n. of observables: if it is 1, then do just minimizer, otherwise do cross validation
     # No: you can do cross validation also for 1 observable, in this case force which_set to 'validation',
     # namely, do cross validation on frames
@@ -86,7 +88,7 @@ def MDRefinement(
 
     mini = hyper_minimizer(
         data, starting_alpha, starting_beta, starting_gamma, regularization,
-        random_states, infos, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs)
+        random_states, infos, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs, if_print_biblio=False)
 
     optimal_log10_hyperpars = mini.x
 
@@ -128,7 +130,7 @@ def MDRefinement(
     # # for the minimization with optimal hyper-parameters use full data set
     # data = load_data(infos)
 
-    Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma)
+    Result = minimizer(data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma, if_print_biblio=False)
 
     Result.optimal_hyperpars = optimal_hyperpars
     Result.hyper_minimization = mini

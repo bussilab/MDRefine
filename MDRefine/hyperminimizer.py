@@ -15,7 +15,7 @@ from jax import config
 config.update("jax_enable_x64", True)
 
 from .loss_and_minimizer import compute_js, compute_new_weights, gamma_function, loss_function, minimizer
-from .loss_and_minimizer import split_dataset, validation
+from .loss_and_minimizer import split_dataset, validation, print_references
 
 # %% D. (automatic) optimization of the hyper parameters through minimization of chi2
 
@@ -502,7 +502,7 @@ def mini_and_chi2_and_grad(
     data_valid = out[1]
 
     mini = minimizer(
-        data_train, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma, starting_pars=starting_pars)
+        data_train, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma, starting_pars=starting_pars, if_print_biblio=False)
 
     if hasattr(mini, 'pars'):
         pars_ff_fm = mini.pars
@@ -662,7 +662,7 @@ def hyper_function(
 def hyper_minimizer(
         data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf,
         regularization=None, random_states=1, replica_infos=None, which_set='valid_frames',
-        gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None):
+        gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None, if_print_biblio=True):
     """
     This tool optimizes the hyperparameters by minimizing the selected chi2 ('training', 'valid_frames' or 'validation')
     over several (randomly) splits of the full data set into training/validation set.
@@ -708,6 +708,8 @@ def hyper_minimizer(
     if starting_gamma <= 0:
         print('required gamma > 0; starting with gamma = 1')
         starting_gamma = 1
+
+    if if_print_biblio: print_references(starting_alpha, starting_beta, starting_gamma, hasattr(data.properties, 'cycle_names'))
 
     class hyper_intermediate_class():
         def __init__(self):

@@ -1,0 +1,27 @@
+References for Ensemble Refinement:
+J. W. Pitera and J. D. Chodera, “On the use of experimental observations to bias simulated ensembles,” J. Chem. Theory Comp. 8, 3445–3451 (2012).
+G. Hummer and J. Köfinger, “Bayesian ensemble refinement by replica simulations and reweighting,” J. Chem. Phys. 143, 243150 (2015).
+A. Cesari, A. Gil-Ley, and G. Bussi, “Combining simulations and solution experiments as a paradigm for RNA force field refinement,” J. Chem. Theory Comp. 12, 6192–6200 (2016).
+A. Cesari, S. Reißer, and G. Bussi, “Using the maximum entropy principle to combine simulations and solution experiments,” Computation 6, 15 (2018).
+J. Köfinger, L. S. Stelzl, K. Reuter, C. Allande, K. Reichel, and G. Hummer, “Efficient ensemble refinement by reweighting,” J. Chem. Theory Comput. 15, 3390–3401 (2019)
+
+References for Force-Field Fitting:
+A. B. Norgaard, J. Ferkinghoff-Borg, and K. Lindorff-Larsen, “Experimental parameterization of an energy function for the simulation of unfolded proteins,” Biophys. J. 94, 182–192 (2008)
+T. Fröhlking, M. Bernetti, N. Calonaci, and G. Bussi, “Toward empirical force fields that match experimental observables,” J. Chem. Phys. 152, 230902 (2020).
+J. Köfinger and G. Hummer, “Empirical optimization of molecular simulation force fields by Bayesian inference,” Eur. Phys. J. B 94, 245 (2021).
+X. Wang, J. Li, L. Yang, F. Chen, Y. Wang, J. Chang, J. Chen, W. Feng, L. Zhang, and K. Yu, “Dmff: an open-source automatic differentiable platform for molecular force field development and molecular dynamics simulation,” Journal of Chemical Theory and Computation 19, 5897–5909 (2023).
+P. Fuchs, S. Thaler, S. Röcken, and J. Zavadlav, “chemtrain: Learning deep potential models via automatic differentiation and statistical physics,” Computer Physics Communications , 109512 (2025)
+
+References for Ensemble Refinement + Force-Field Fitting:
+I. Gilardoni, T. Fröhlking, and G. Bussi, “Boosting ensemble refinement with transferable force-field corrections: Synergistic optimization for molecular simulations,” J. Phys. Chem. Lett. 15, 1204–1210 (2024).
+
+References for Ensemble + Forward-Model Refinement:
+T. Fröhlking, M. Bernetti, and G. Bussi, “Simultaneous refinement of molecular dynamics ensembles and forward models using experimental data,” J. Chem. Phys. 158 (2023).
+
+References for Refinement with alchemical calculations:
+R. W. Zwanzig, “High-temperature equation of state by a perturbation method. i. nonpolar gases,” J. Chem. Phys. 22, 1420–1426 (1954).
+M. R. Shirts, D. L. Mobley, and J. D. Chodera, “Alchemical free energy calculations: ready for prime time?” Annual reports in computational chemistry 3, 41–59 (2007).
+V. Piomponi, T. Fröhlking, M. Bernetti, and G. Bussi, “Molecular simulations matching denaturation experiments for N6-methyladenosine,” ACS Cent. Sci. 8, 1218–1228 (2022).
+
+References for MDRefine package:
+I. Gilardoni, V. Piomponi, T. Fröhlking, and G. Bussi, “MDRefine: a Python package for refining Molecular Dynamics trajectories with experimental data", arxiv (2024)
