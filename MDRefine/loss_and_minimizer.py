@@ -913,6 +913,7 @@ def print_references(alpha, beta, gamma, if_ddg):
     refs = ['Ensemble Refinement', 'Force-Field Fitting', 'Ensemble Refinement + Force-Field Fitting',
         'Ensemble + Forward-Model Refinement', 'Refinement with alchemical calculations', 'MDRefine package']
 
+    print(os.getcwd())
     if os.getcwd()[-8:] == 'Examples': path = '../MDRefine/references'
     else: path = 'references'
 
