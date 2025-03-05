@@ -920,7 +920,7 @@ def print_references(alpha, beta, gamma, if_ddg):
     if os.getcwd()[-8:] == 'Examples' or os.getcwd()[-4:] == 'tests': path = '../MDRefine/references'
     else: path = 'MDRefine/references'
 
-    print(os.listdir(path))
+    print(os.listdir(path[:-11]))
     
     my_strings = [refs[5]]
 
