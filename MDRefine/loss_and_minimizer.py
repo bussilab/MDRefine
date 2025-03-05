@@ -914,6 +914,7 @@ def print_references(alpha, beta, gamma, if_ddg):
         'Ensemble + Forward-Model Refinement', 'Refinement with alchemical calculations', 'MDRefine package']
 
     print(os.getcwd())
+    print(os.listdir())
     if os.getcwd()[-8:] == 'Examples': path = '../MDRefine/references'
     else: path = 'references'
 
