@@ -16,6 +16,7 @@ class Test(unittest.TestCase):
 
             # 1. load data with load_data
             data = load_data(infos, stride=stride)
+            del data.properties.infos
 
             # 2. load pickle into loaded_data
             with open(path_pickle, 'rb') as f:

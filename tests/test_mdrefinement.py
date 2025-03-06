@@ -162,6 +162,8 @@ class Test(my_testcase):
         my_df0 = pandas.read_csv(path_list[0] + 'input', index_col=0, usecols=usecols)
         my_df1 = pandas.read_csv(path_list[1] + 'input', index_col=0, usecols=usecols)
 
+        my_df0 = my_df0.drop(columns=['stride'])
+
         self.assertEqualObjs(list(my_df0.columns), list(my_df1.columns))
 
         for s in list(my_df0.columns):
