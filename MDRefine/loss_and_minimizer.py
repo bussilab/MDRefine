@@ -917,14 +917,10 @@ def print_references(alpha, beta, gamma, if_ddg):
     
     path = os.getcwd()
 
-    print('here', os.getcwd(), os.listdir())
-
     if os.getcwd()[-8:] == 'Examples': path = path[:-8]
     elif os.getcwd()[-5:] == 'tests': path = path[:-5]
     
     path = path + '/references'
-
-    print(os.listdir(path[:-11]))
     
     my_strings = [refs[5]]
 
@@ -1187,7 +1183,7 @@ class class_validation:
     Class for validation data set, with similar structure as `data_class`.
     """
     def __init__(self, data_mol, valid_frames_mol, valid_obs_mol, if_all_frames, data_train_mol):
-
+        
         # A. split weights
         try:
             w = data_mol.weights[tuple(valid_frames_mol)]

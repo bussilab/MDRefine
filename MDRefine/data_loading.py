@@ -187,7 +187,11 @@ class datapropertiesclass:
     cycle_names : list
         List of names of the investigated thermodynamic cycles.
     """
-    def __init__(self, info_global, path_directory):
+    def __init__(self, infos, path_directory):
+
+        self.infos = infos
+
+        info_global = infos['global']
 
         self.system_names = info_global['system_names']
 
@@ -467,7 +471,7 @@ class my_data:
         if not path_directory[-1] == '/': path_directory += '/'
         
         # global data
-        self.properties = datapropertiesclass(infos['global'], path_directory)
+        self.properties = datapropertiesclass(infos, path_directory)
 
         # data for each molecular system
 

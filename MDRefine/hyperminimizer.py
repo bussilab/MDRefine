@@ -661,7 +661,7 @@ def hyper_function(
 
 def hyper_minimizer(
         data, starting_alpha=+np.inf, starting_beta=+np.inf, starting_gamma=+np.inf,
-        regularization=None, random_states=1, replica_infos=None, which_set='valid_frames',
+        regularization=None, random_states=1, which_set='valid_frames',
         gtol=0.5, ftol=0.05, starting_pars=None, n_parallel_jobs=None, if_print_biblio=True):
     """
     This tool optimizes the hyperparameters by minimizing the selected chi2 ('training', 'valid_frames' or 'validation')
@@ -677,9 +677,6 @@ def hyper_minimizer(
     
     regularization : dict
         Dictionary for the defined regularizations of force-field and forward-model corrections (`None` by default); see for `MDRefinement`.
-    
-    replica_infos : dict
-        Dictionary with information required to split frames following continuous trajectories in replica exchange ("demuxing"); see `split_dataset` for further details.
 
     random_states : int or list
         Random states (i.e., seeds) used in `split_dataset` to split the data set into training and validation set (see `MDRefinement`); 1 by default.
@@ -729,7 +726,7 @@ def hyper_minimizer(
     valid_frames = {}
 
     for seed in random_states:
-        out = split_dataset(data, random_state=seed, replica_infos=replica_infos)
+        out = split_dataset(data, random_state=seed, replica_infos=data.properties.infos)
         valid_obs[seed] = out[2]
         valid_frames[seed] = out[3]
         # here you could check to not have repeated choices

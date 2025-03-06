@@ -20,7 +20,7 @@ from .loss_and_minimizer import minimizer, print_references
 
 
 def MDRefinement(
-        infos: dict, *, regularization: dict = None, stride: int = 1,
+        data, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
         random_states = 5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
         results_folder_name: str = 'results', n_parallel_jobs: int = None):
@@ -32,8 +32,9 @@ def MDRefinement(
     Parameters
     ----------
     
-    infos: dict
-        A dictionary of information used to load data with `load_data` (see in the Examples directory).
+    data: class instance
+        The data set: an instance of the `data_loading.my_data` class or `split_dataset.my_data_trainvalid` class (in the case with test observables).
+        It can also be `infos`, a dictionary of information used to load data with `load_data` (see in the Examples directory).
     
     regularization: dict
         A dictionary which can include two keys: `force_field_reg` and `forward_model_reg`, to specify the regularizations to the force-field correction and the forward model, respectively;
@@ -44,7 +45,8 @@ def MDRefinement(
     
     stride: int
         The stride of the frames used to load data employed in search for optimal hyperparameters
-        (in order to reduce the computational cost, at the price of a lower representativeness of the ensembles).
+        (used only when passing `infos` rather than `data`).
+        In order to reduce the computational cost, at the price of a lower representativeness of the ensembles.
     
     starting_alpha, starting_beta, starting_gamma: floats
         Starting values of the hyperparameters (`np.inf` by default, namely no refinement in that direction).
@@ -70,7 +72,8 @@ def MDRefinement(
     n_parallel_jobs: int
         How many jobs are run in parallel (`None` by default).
     """
-    data = load_data(infos, stride=stride)
+
+    if type(data) is dict: data = load_data(data, stride=stride)
 
     print_references(starting_alpha, starting_beta, starting_gamma, hasattr(data.properties, 'cycle_names'))
 
@@ -88,7 +91,7 @@ def MDRefinement(
 
     mini = hyper_minimizer(
         data, starting_alpha, starting_beta, starting_gamma, regularization,
-        random_states, infos, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs, if_print_biblio=False)
+        random_states, which_set, gtol, ftol, n_parallel_jobs=n_parallel_jobs, if_print_biblio=False)
 
     optimal_log10_hyperpars = mini.x
 
@@ -139,16 +142,19 @@ def MDRefinement(
 
     """ save results in txt files """
     if not np.isinf(beta):
-        coeff_names = infos['global']['names_ff_pars']
+        coeff_names = data.properties.names_ff_pars
     else:
         coeff_names = []
     if not np.isinf(gamma):
         coeff_names = coeff_names + list(data.properties.forward_coeffs_0.keys())
 
-    input_values = {
-        'stride': stride, 'starting_alpha': starting_alpha, 'starting_beta': starting_beta,
-        'starting_gamma': starting_gamma, 'random_states': random_states, 'which_set': which_set,
-        'gtol': gtol, 'ftol': ftol}
+    input_values = {}
+
+    if type(data) == dict: input_values['stride'] = stride
+
+    input_values.update({
+        'starting_alpha': starting_alpha, 'starting_beta': starting_beta, 'starting_gamma': starting_gamma,
+        'random_states': random_states, 'which_set': which_set, 'gtol': gtol, 'ftol': ftol})
 
     save_txt(input_values, Result, coeff_names, folder_name=results_folder_name)
 
