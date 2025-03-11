@@ -30,8 +30,7 @@ jobs:
         pytest -v
     - name: Test notebooks
       run: |
-        pip install jupyter
-        ( cd Examples && bash requirements.sh && bash rerun.sh )
+        ( cd Examples && pip install -r requirements.txt && bash rerun.sh )
     - name: Pylint
       run: |
         pip install --upgrade  pylint

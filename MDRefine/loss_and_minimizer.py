@@ -920,7 +920,7 @@ def print_references(alpha, beta, gamma, if_ddg):
     if os.getcwd()[-8:] == 'Examples': path = path[:-8]
     elif os.getcwd()[-5:] == 'tests': path = path[:-5]
     
-    path = path + '/references'
+    path = path + '/references.txt'
     
     my_strings = [refs[5]]
 
@@ -1396,21 +1396,21 @@ class class_test:
 
 
 def split_dataset(
-        data, *, valid_frames_size: float = 0.2, valid_obs_size: float = 0.2, random_state: int = None,
+        data, *, frames_fraction: float = 0.2, obs_fraction: float = 0.2, random_state: int = None,
         valid_frames: dict = None, valid_obs: dict = None, if_all_frames: bool = False, replica_infos: dict = None, if_verbose: bool = True):
     """
-    This tool splits the data set into training and validation set.
-    You can either randomly select the frames and/or the observables (accordingly to `valid_frames_size`, `valid_obs_size`, `random_state`)
-    or pass the dictionaries `valid_obs` and/or `valid_frames`.
+    This tool splits the data set into training and validation (or test) set.
+    You can either randomly select the frames and/or the observables (accordingly to `frames_fraction`, `obs_fraction`, `random_state`)
+    or pass the dictionaries `valid_obs` and/or `valid_frames`. They refer to validation / test set.
 
     Parameters
     ----------
     data : class instance
         Class instance for the `data` object.
     
-    valid_frames_size, valid_obs_size : float
-        Values for the fractions of frames and observables for the validation set, respectively. Each of them is a number in (0,1) (same fraction for every system),
-        by default `0.2`.
+    frames_fraction, obs_fraction : float
+        Values for the fractions of frames and observables for the validation / test set, respectively.
+        Each of them is a number in (0,1) (same fraction for every system), by default `0.2`.
     
     random_state : int
         The random state (or seed), used to make the same choice for different hyperparameters; if `None`,
@@ -1446,12 +1446,12 @@ def split_dataset(
     rng = None
 
     if valid_obs is None:
-        assert (valid_obs_size > 0 and valid_obs_size < 1), 'error on valid_obs_size'
+        assert (obs_fraction > 0 and obs_fraction < 1), 'error on obs_fraction'
     if valid_frames is None:
-        assert (valid_frames_size >= 0 and valid_frames_size < 1), 'error on valid_frames_size'
-        if valid_frames_size == 0: print('split observables only (not frames)')
+        assert (frames_fraction >= 0 and frames_fraction < 1), 'error on frames_fraction'
+        if frames_fraction == 0: print('split observables only (not frames)')
     
-    if (valid_obs is None) or ((valid_frames is None) and valid_frames_size != 0):
+    if (valid_obs is None) or ((valid_frames is None) and frames_fraction != 0):
         # namely, if you have to randomly select something
         if random_state is None:
             random_state = random.randint(1000)
@@ -1459,18 +1459,18 @@ def split_dataset(
         rng = random.default_rng(seed=random_state)
     
     if if_verbose:
-        if (valid_obs is None) and (valid_frames is None) and (valid_frames_size != 0):
-            print('Input random_state employed both for valid_obs and valid_frames')
-        elif (valid_obs is None) and (valid_frames is not None or valid_frames_size == 0):
-            print('Input random_state employed for valid_obs only')  #  since valid_frames are given')
-        elif (valid_obs is not None) and (valid_frames is None) and (valid_frames_size != 0):
-            print('Input random_state employed only for valid_frames since valid_obs are given')
-        elif (valid_obs is not None) and (valid_frames is not None or valid_frames_size == 0):
+        if (valid_obs is None) and (valid_frames is None) and (frames_fraction != 0):
+            print('Input random_state employed both for observables and frames')
+        elif (valid_obs is None) and (valid_frames is not None or frames_fraction == 0):
+            print('Input random_state employed for observables only')  #  since valid_frames are given')
+        elif (valid_obs is not None) and (valid_frames is None) and (frames_fraction != 0):
+            print('Input random_state employed for frames only')  # since observables are given')
+        elif (valid_obs is not None) and (valid_frames is not None or frames_fraction == 0):
             print('Input random_state will not be used')  # , since both valid_frames and valid_obs are given')
 
     # 1B. SELECT VALIDATING FRAMES
 
-    if (valid_frames is None) and (valid_frames_size != 0):
+    if (valid_frames is None) and (frames_fraction != 0):
 
         valid_frames = {}
         valid_replicas = {}
@@ -1494,7 +1494,7 @@ def split_dataset(
                 for i in range(n_replicas):
                     pos_replicas.append(np.argwhere(replica_index[:, n_temp] == i)[:, 0])
 
-                n_replicas_valid = np.int16(np.round(valid_frames_size*n_replicas))
+                n_replicas_valid = np.int16(np.round(frames_fraction*n_replicas))
                 valid_replicas[name_mol] = np.sort(rng.choice(n_replicas, n_replicas_valid, replace=False))
 
                 fin = np.array([])
@@ -1504,7 +1504,7 @@ def split_dataset(
                 del fin
 
             else:
-                n_frames_valid = np.int16(np.round(valid_frames_size*data.mol[name_mol].n_frames))
+                n_frames_valid = np.int16(np.round(frames_fraction*data.mol[name_mol].n_frames))
                 valid_frames[name_mol] = np.sort(rng.choice(data.mol[name_mol].n_frames, n_frames_valid, replace=False))
                 # except:
                 # valid_frames[name_mol] = random.choice(key, data.mol[name_mol].n_frames,(n_frames_valid[name_mol],),
@@ -1513,7 +1513,7 @@ def split_dataset(
         if valid_replicas == {}:
             del valid_replicas
 
-    elif (valid_frames is None) and (valid_frames_size == 0):
+    elif (valid_frames is None) and (frames_fraction == 0):
         valid_frames = {}
         for name_mol in system_names:
             valid_frames[name_mol] = np.int64(np.array([]))
@@ -1531,7 +1531,7 @@ def split_dataset(
         #     valid_obs[name_mol] = {}
 
         #     for name_type in data.g[name_mol].keys():
-        #         n_obs_valid[name_mol][name_type] = np.int16(np.round(valid_obs_size*data.n_experiments[name_mol][name_type]))
+        #         n_obs_valid[name_mol][name_type] = np.int16(np.round(obs_fraction*data.n_experiments[name_mol][name_type]))
         #         valid_obs[name_mol][name_type] = np.sort(rng.choice(data.n_experiments[name_mol][name_type],
         #           n_obs_valid[name_mol][name_type],replace = False))
 
@@ -1543,8 +1543,8 @@ def split_dataset(
             valid_obs[name_mol] = {}
 
             n = np.sum(np.array(list(data.mol[name_mol].n_experiments.values())))
-            vec = np.sort(rng.choice(n, np.int16(np.round(n*valid_obs_size)), replace=False))
-            # except: vec = np.sort(jax.random.choice(key, n, (np.int16(np.round(n*valid_obs_size)),), replace = False))
+            vec = np.sort(rng.choice(n, np.int16(np.round(n*obs_fraction)), replace=False))
+            # except: vec = np.sort(jax.random.choice(key, n, (np.int16(np.round(n*obs_fraction)),), replace = False))
 
             sum = 0
             for name_type in data.mol[name_mol].n_experiments.keys():
@@ -1630,7 +1630,7 @@ def split_dataset(
                 my_list2.append(s2)
 
         for s2 in my_list1:
-            """ no validation observables of this kind """
+            """ no validation / test observables of this kind """
             try:
                 del data_valid.mol[s1].gexp_new[s2], data_valid.mol[s1].g_new[s2], data_valid.mol[s1].n_experiments_new[s2]
                 del data_valid.mol[s1].selected_obs_new[s2]  # , data_valid[s1].names_new[s2]
@@ -1638,7 +1638,7 @@ def split_dataset(
             
 
         for s2 in my_list2:
-            """ no training observables of this kind"""
+            """ no training / test observables of this kind"""
             del data_valid.mol[s1].gexp[s2], data_valid.mol[s1].g[s2], data_valid.mol[s1].n_experiments[s2]
             del data_valid.mol[s1].ref[s2]  # , data_valid.mol[s1].names[s2]
             
