@@ -916,13 +916,18 @@ def print_references(alpha, beta, gamma, if_ddg):
     # path = os.path.dirname(os.path.realpath(__file__)) + '/references'
     
     path = os.path.dirname(os.path.abspath(__file__)) + '/references.txt'
-    try:
-        open(path)
-    except:  # for test tutorials on github
+
+    if not os.path.isfile(path):  # True for test tutorials on github
         path = os.getcwd()
-        if os.getcwd()[-8:] == 'Examples': path = path[:-8]
-        elif os.getcwd()[-5:] == 'tests': path = path[:-5]
-        path = path + '/MDRefine/references.txt'
+        # if os.getcwd()[-8:] == 'Examples': path = path[:-8]
+        # elif os.getcwd()[-5:] == 'tests': path = path[:-5]
+
+        my_path = path + '/MDRefine/references.txt'
+
+        if os.path.isfile(my_path):
+            path = my_path
+        else:  # True for test tutorials on github (conda)
+            path = path + '/references.txt'
     
     my_strings = [refs[5]]
 
