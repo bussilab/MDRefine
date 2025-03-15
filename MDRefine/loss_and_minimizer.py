@@ -915,12 +915,7 @@ def print_references(alpha, beta, gamma, if_ddg):
 
     # path = os.path.dirname(os.path.realpath(__file__)) + '/references'
     
-    path = os.getcwd()
-
-    if os.getcwd()[-8:] == 'Examples': path = path[:-8]
-    elif os.getcwd()[-5:] == 'tests': path = path[:-5]
-    
-    path = path + '/references.txt'
+    path = os.path.dirname(os.path.abspath(__file__)) + '/references.txt'
     
     my_strings = [refs[5]]
 
