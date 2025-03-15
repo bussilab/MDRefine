@@ -927,6 +927,8 @@ def print_references(alpha, beta, gamma, if_ddg):
         if os.path.isfile(my_path):
             path = my_path
         else:  # True for test tutorials on github (conda)
+            print(os.listdir(os.getcwd()))
+            print(os.listdir(os.getcwd() + '/MDRefine'))
             path = path + '/references.txt'
     
     my_strings = [refs[5]]
