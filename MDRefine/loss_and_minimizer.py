@@ -920,8 +920,9 @@ def print_references(alpha, beta, gamma, if_ddg):
         open(path)
     except:  # for test tutorials on github
         path = os.getcwd()
-        if os.getcwd()[-8:] == 'Examples': path = path[:-8]
-        elif os.getcwd()[-5:] == 'tests': path = path[:-5]
+        print(os.listdir(path))
+        if os.getcwd()[-8:] == 'Examples': path = path[:-8] + '/MDRefine'
+        elif os.getcwd()[-5:] == 'tests': path = path[:-5] + '/MDRefine'
         path = path + '/references.txt'
     
     my_strings = [refs[5]]
