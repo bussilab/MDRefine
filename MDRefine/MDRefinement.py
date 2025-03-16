@@ -23,7 +23,7 @@ def MDRefinement(
         data, *, regularization: dict = None, stride: int = 1,
         starting_alpha: float = np.inf, starting_beta: float = np.inf, starting_gamma: float = np.inf,
         random_states = 5, which_set: str = 'validation', gtol: float = 0.5, ftol: float = 0.05,
-        results_folder_name: str = 'results', n_parallel_jobs: int = None):
+        results_folder_name: str = 'results', n_parallel_jobs: int = None, id_code: str = None):
     """
     This is the main tool of the package: it loads data, searches for the optimal hyperparameters and minimizes the loss function on the whole data set
     by using the opimized hyperparameters. The output variables are then saved in a folder; they include `input` values, `min_lambdas` (optimal lambda coefficients for Ensemble Refinement, when performed),
@@ -71,6 +71,10 @@ def MDRefinement(
     
     n_parallel_jobs: int
         How many jobs are run in parallel (`None` by default).
+
+    id_code : None or str
+        Identificative code (suffix) of the folder name where output data (result) will be saved.
+        If None, then the current date will be used.
     """
 
     if type(data) is dict: data = load_data(data, stride=stride)
@@ -156,7 +160,7 @@ def MDRefinement(
         'starting_alpha': starting_alpha, 'starting_beta': starting_beta, 'starting_gamma': starting_gamma,
         'random_states': random_states, 'which_set': which_set, 'gtol': gtol, 'ftol': ftol})
 
-    save_txt(input_values, Result, coeff_names, folder_name=results_folder_name)
+    save_txt(input_values, Result, coeff_names, folder_name=results_folder_name, id_code=id_code)
 
     return Result
 
@@ -199,7 +203,7 @@ def unwrap_dict(d):
 
     return np.hstack(res)
 
-def save_txt(input_values, Result, coeff_names, folder_name='Result'):
+def save_txt(input_values, Result, coeff_names, folder_name = 'Result', id_code: str = None):
     """
     This is an internal tool of `MDRefinement` used to save `input_values` and output `Result` as `csv` and `npy` files in a folder whose name is
     `folder_name + '_' + date` where date is the current time when the computation ended (it uses `date_time`
@@ -218,6 +222,10 @@ def save_txt(input_values, Result, coeff_names, folder_name='Result'):
 
     folder_name : str
         String for the prefix of the folder name (by default, `'Result'`).
+
+    id_code : None or str
+        Identificative code (suffix) of the folder name where output data (result) will be saved.
+        If None, then the current date will be used.
     """
     s = datetime.datetime.now()
     date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
