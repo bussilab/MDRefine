@@ -227,8 +227,10 @@ def save_txt(input_values, Result, coeff_names, folder_name = 'Result', id_code:
         Identificative code (suffix) of the folder name where output data (result) will be saved.
         If None, then the current date will be used.
     """
-    s = datetime.datetime.now()
-    date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
+    if id_code is None:
+        s = datetime.datetime.now()
+        date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
+    else: date = id_code
 
     folder_name = folder_name + '_' + date
 
