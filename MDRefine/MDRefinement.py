@@ -57,7 +57,7 @@ def MDRefinement(
     which_set: str
         String chosen among `'training'`, `'valid_frames'` or `'validation'`, which specifies how to determine optimal hyperparameters:
         if minimizing the (average) chi2 on the training set for `'training'`, on training observables and validation frames for `'valid_frames'`,
-        on validation observables for `'validation'`.
+        on validation observables and validation frames for `'validation'`, on validation observables and all frames for `'valid_obs'`.
     
     gtol: float
         Tolerance `gtol` (on the gradient) of scipy.optimize.minimize (0.5 by default).

@@ -253,7 +253,7 @@ def compute_hyperderivatives(
 
 # %% D2. compute_chi2_tot
 
-def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gamma, which_set):
+def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gamma, which_set, data_train):
     """
     This function is an internal tool used in `compute_hypergradient` and `hyper_minimizer`
     to compute the total chi2 (float variable) for training or validation data set and its derivatives
@@ -277,7 +277,11 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
         Values of the hyperparameters.
     
     which_set: str
-        String variable, chosen among `'training'`, `'valid_frames'` or `'valid'` as explained above.
+        String variable, chosen among `'training'`, `'valid_frames'`, `'valid_obs'` or `'validation'` as explained above.
+    
+    data_train: dict
+        Dictionary of training dataset objects, required if `which_set = 'valid_obs'` to compute the chi2
+        on validating obvervables including also training frames. 
     """
     if which_set == 'training' or which_set == 'valid_frames':
         tot_chi2 = 0
@@ -288,11 +292,18 @@ def compute_chi2_tot(pars_ff_fm, lambdas, data, regularization, alpha, beta, gam
             for item in Details.chi2[s1].values():
                 tot_chi2 += item
 
-    elif which_set == 'validation':
+    elif which_set == 'validation' or which_set == 'valid_obs':
+        # validation set includes observables left out from training
+        # 'validation' includes only left-out frames, while 'valid_obs' also training frames
 
-        tot_chi2 = validation(
-            pars_ff_fm, lambdas, data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
-            which_return='chi2 validation')
+        if which_set == 'valid_obs':
+            tot_chi2 = validation(
+                pars_ff_fm, lambdas, data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
+                data_train=data_train, which_return='chi2 validation')
+        else:
+            tot_chi2 = validation(
+                pars_ff_fm, lambdas, data, regularization=regularization, alpha=alpha, beta=beta, gamma=gamma,
+                data_train=None, which_return='chi2 validation')
 
     assert tot_chi2, 'error in compute_chi2_tot' + which_set
 
@@ -426,7 +437,7 @@ def compute_hypergradient(
 
     """ compute chi2 and its derivatives w.r.t. pars"""
 
-    assert which_set in ['training', 'valid_frames', 'validation'], 'error on which_set'
+    assert which_set in ['training', 'valid_frames', 'validation', 'valid_obs'], 'error on which_set'
     if which_set == 'training':
         my_data = data_train
     else:
@@ -434,7 +445,7 @@ def compute_hypergradient(
 
     my_args = (
         pars_ff_fm, lambdas_vec, my_data, regularization, 10**(log10_alpha), 10**(log10_beta),
-        10**(log10_gamma), which_set)
+        10**(log10_gamma), which_set, data_train)
 
     chi2 = compute_chi2_tot(*my_args)  # so, lambdas follows order of system_names of my_data
 
@@ -497,7 +508,11 @@ def mini_and_chi2_and_grad(
     derivatives_funs : class instance
         Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax Autodiff.
     """
-    out = split_dataset(data, valid_frames=valid_frames, valid_obs=valid_obs, if_verbose=False)
+
+    if which_set == 'valid_obs': if_all_frames = True  # include also training frames in the validation set (new observables)
+    else: if_all_frames = False
+    
+    out = split_dataset(data, valid_frames=valid_frames, valid_obs=valid_obs, if_verbose=False, if_all_frames=if_all_frames)
     data_train = out[0]
     data_valid = out[1]
 
@@ -523,8 +538,8 @@ def mini_and_chi2_and_grad(
 
 
 def hyper_function(
-        log10_hyperpars, map_hyperpars, data, regularization, valid_obs, valid_frames, which_set, derivatives_funs,
-        starting_pars, n_parallel_jobs):
+        log10_hyperpars, map_hyperpars, data, regularization, valid_obs, valid_frames, which_set,
+        derivatives_funs, starting_pars, n_parallel_jobs):
     """
     This function is an internal tool of `hyper_minimizer` which determines the optimal parameters by minimizing the loss function at given hyperparameters;
     then, it computes chi2 and its gradient w.r.t hyperparameters (for the optimal parameters).
@@ -724,6 +739,9 @@ def hyper_minimizer(
 
     valid_obs = {}
     valid_frames = {}
+
+    # if which_set == 'valid_obs': if_all_frames = True  # validation set includes also training frames
+    # here it is the same in both cases, since selecting only valid_obs and valid_frames
 
     for seed in random_states:
         out = split_dataset(data, random_state=seed, replica_infos=data.properties.infos)

@@ -1683,7 +1683,7 @@ def validation(
         Numpy 1-dimensional array of lambdas coefficients (those for ensemble refinement).
     
     data_valid: dict
-        Dictionary for the validation data set, `data`-like object, as returned by `select_trainvalid`.
+        Dictionary for the validation data set, `data`-like object, as returned by `split_dataset`.
     
     regularization: dict
         Dictionary for the regularizations (see in `MDRefinement`), by default, `None`.
@@ -1692,7 +1692,7 @@ def validation(
         Values for the hyperparameters (by default, `+np.inf`, namely, no refinement).
     
     data_train: dict
-        Dictionary for the training data set, `data`-like object, as returned by `select_trainvalid` (`None` by default,
+        Dictionary for the training data set, `data`-like object, as returned by `split_dataset` (`None` by default,
         namely use only validation frames for new observables).
     
     which_return: str
@@ -1722,7 +1722,8 @@ def validation(
         for s1 in Validation_values.chi2.keys():
             for item in Validation_values.chi2[s1].values():
                 tot_chi2 += item
-        return tot_chi2
+    
+    if data_train is None: return tot_chi2  # else, compute chi2 for validating observables also on trained frames
 
     # let's compute firstly the average of non-trained (validating) observables on new frames
 
@@ -1770,13 +1771,11 @@ def validation(
         out = compute_chi2(*args)
 
         Validation_values.avg_new_obs[name_mol] = out[0]
-
-        if not hasattr(data_valid.mol[name_mol], 'forward_qs_trained'):
-            Validation_values.chi2_new_obs[name_mol] = out[1]
+        Validation_values.chi2_new_obs[name_mol] = out[1]
 
     # then, if you want to include also trained frames for validating observables:
 
-    if hasattr(data_valid.mol[system_names[0]], 'forward_qs_trained') and (data_train is not None):  # forward qs on trained frames
+    if (data_train is not None):  # forward qs on trained frames
 
         Details_train = loss_function(pars_ff_fm, data_train, regularization, alpha, beta, gamma, lambdas, if_save=True)
 
@@ -1792,12 +1791,12 @@ def validation(
                 else:
                     g[name_mol] = {}
 
-                if hasattr(data_valid.mol[name_mol], 'selected_obs'):
-                    selected_obs = data_valid.mol[name_mol].selected_obs
+                if hasattr(data_valid.mol[name_mol], 'selected_obs_new'):
+                    selected_obs = data_valid.mol[name_mol].selected_obs_new
                 else:
                     selected_obs = None
 
-                fm_observables = data_valid.mol[name_mol].forward_model(pars_fm, data_valid.mol[name_mol].forward_qs, selected_obs)
+                fm_observables = data_valid.mol[name_mol].forward_model(pars_fm, data_valid.mol[name_mol].forward_qs_trained, selected_obs)
 
                 for name in fm_observables.keys():
 
@@ -1808,10 +1807,12 @@ def validation(
 
                 del fm_observables
 
-            Validation_values.chi2_new_obs[name_mol] = {}
+            # put together average on training frames and average on test frames
+            # by summing the two with factors 1/(1 + Z_test / Z_train) and 1/(1 + Z_train / Z_test) respectively
+            Validation_values.chi2_new_obs_1[name_mol] = {}
 
             args = (data_valid.mol[name_mol].ref, Details_train.weights_new[name_mol], g[name_mol], data_valid.mol[name_mol].gexp_new)
-            out = compute_chi2(*args)[0]
+            out = compute_chi2(*args)[0]  # this is the average value of the validating observables on training frames
 
             log_fact_Z = data_valid.mol[name_mol].logZ + Validation_values.logZ_new[name_mol]
             - Details_train.logZ_new[name_mol] - data_train.mol[name_mol].logZ
@@ -1819,7 +1820,7 @@ def validation(
             if hasattr(Validation_values, 'logZ_P'):
                 log_fact_Z += Validation_values.logZ_P_valid[name_mol] - Details_train.logZ_P[name_mol]
 
-            for name_type in data_valid.mol[name_mol].n_experiments.keys():
+            for name_type in out.keys():
                 Validation_values.avg_new_obs[name_mol][name_type] = 1/(1+np.exp(log_fact_Z))*out[name_type]
                 + 1/(1+np.exp(-log_fact_Z))*Validation_values.avg_new_obs[name_mol][name_type]
 
