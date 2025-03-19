@@ -1723,7 +1723,7 @@ def validation(
             for item in Validation_values.chi2[s1].values():
                 tot_chi2 += item
     
-    if data_train is None: return tot_chi2  # else, compute chi2 for validating observables also on trained frames
+        if data_train is None: return tot_chi2  # else, compute chi2 for validating observables also on trained frames
 
     # let's compute firstly the average of non-trained (validating) observables on new frames
 
