@@ -187,7 +187,7 @@ def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pa
         red_chi2 : float
             Reduced chi2 (chi2 / n. of observables) 
     """
-
+    assert which_set == 'validation' or which_set == 'valid_obs', 'you are not computing the chi2 on test observables'
 
     if lambdas is None: log10_alpha = np.inf
     else: log10_alpha = 0
@@ -213,7 +213,7 @@ def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pa
         for s in data_test.mol.keys():
             n_obs += np.sum(np.array(list(data_test.mol[s].n_experiments_new.values())))
         
-    chi2 = chi2/n_obs_test
+        chi2 = chi2/n_obs_test
 
     return chi2
 

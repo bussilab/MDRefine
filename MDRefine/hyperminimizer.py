@@ -491,7 +491,13 @@ def compute_hypergradient(
     #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments_new.values())))
 
     # chi2 = chi2/n_obs
-    # gradient = gradient/n_obs
+
+    # if 'dchi2_dlogalpha' in vars(gradient).keys():
+    #     gradient.dchi2_dlogalpha = gradient.dchi2_dlogalpha/n_obs
+    # if 'dchi2_dlogbeta' in vars(gradient).keys():
+    #     gradient.dchi2_dlogbeta = gradient.dchi2_dlogbeta/n_obs
+    # if 'dchi2_dloggamma' in vars(gradient).keys():
+    #     gradient.dchi2_dloggamma = gradient.dchi2_dloggamma/n_obs
 
     return chi2, gradient
 
