@@ -13,7 +13,7 @@ from jax import config
 config.update("jax_enable_x64", True)
 
 from .data_loading import load_data
-from .hyperminimizer import hyper_minimizer
+from .hyperminimizer import hyper_minimizer, compute_hypergradient
 from .loss_and_minimizer import minimizer, print_references
 
 # %% D8. MDRefinement
@@ -163,6 +163,56 @@ def MDRefinement(
     save_txt(input_values, Result, coeff_names, folder_name=results_folder_name, id_code=id_code)
 
     return Result
+
+
+def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pars_fm : np.ndarray = None, lambdas : dict = None, which_set : str = 'validation'):
+    """
+    Compute the chi2 on the test set, after the optimal solution has been found.
+    
+    -----------
+    Parameters:
+        data_test : object
+            Object for the test dataset, as returned by `split_dataset`.
+        pars_ff : np.ndarray
+            Numpy 1d array for the force-field correction parameters.
+        pars_fm : np.ndarray
+            Numpy 1d array for the forward model parameters.
+        lambdas : dict
+            Dictionary for the lambda coefficients (of ensemble refinement).
+        which_set : str
+            String variable, if `'validation'` compute the chi2 on validation observables and validation frames.
+    
+    ----------
+    Return:
+        red_chi2 : float
+            Reduced chi2 (chi2 / n. of observables) 
+    """
+
+
+    if lambdas is None: log10_alpha = np.inf
+    else: log10_alpha = 0
+
+    if pars_ff is None:
+        log10_beta = np.inf
+        pars = []
+    else:
+        log10_beta = 0
+        pars = pars_ff
+
+    if pars_fm is None: log10_gamma = np.inf
+    else:
+        log10_gamma = 0
+        pars = np.concatenate((pars, pars_fm))
+
+    chi2 = compute_hypergradient(pars, lambdas, log10_alpha, log10_beta, log10_gamma, data_test, regularization,
+        which_set, data_test)
+
+    if which_set == 'validation' or which_set == 'valid_obs':
+        n_obs_test = np.sum([np.sum(list(data_test.mol[s].n_experiments_new.values())) for s in data_test.mol.keys()])
+
+    chi2 = chi2/n_obs_test
+
+    return chi2
 
 
 def unwrap_2dict(my_2dict):

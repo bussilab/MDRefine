@@ -370,7 +370,7 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
 
 def compute_hypergradient(
         pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
-        which_set, data_valid, derivatives_funs):
+        which_set, data_valid, derivatives_funs = None):
     """
     This is an internal tool of `mini_and_chi2_and_grad`, which employs previously defined functions (`compute_hyperderivatives`, `compute_chi2_tot`,
     `put_together`) to return selected chi2 and its gradient w.r.t hyperparameters.
@@ -402,7 +402,7 @@ def compute_hypergradient(
     
     derivatives_funs: class instance
         Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax Autodiff (they include those employed in `compute_hyperderivatives`
-        and `dchi2_dpars` and/or `dchi2_dlambdas`).
+        and `dchi2_dpars` and/or `dchi2_dlambdas`). If None (default value), do not compute the derivatives of chi2.
     """
     system_names = data_train.properties.system_names
 
@@ -431,9 +431,10 @@ def compute_hypergradient(
     else:
         lambdas_vec = None
 
-    # use non-normalized data and lambdas
-    derivatives = compute_hyperderivatives(
-        pars_ff_fm, lambdas_vec, data_train, regularization, derivatives_funs, log10_alpha, log10_beta, log10_gamma)
+    if derivatives_funs is not None:
+        # use non-normalized data and lambdas
+        derivatives = compute_hyperderivatives(
+            pars_ff_fm, lambdas_vec, data_train, regularization, derivatives_funs, log10_alpha, log10_beta, log10_gamma)
 
     """ compute chi2 and its derivatives w.r.t. pars"""
 
@@ -452,6 +453,9 @@ def compute_hypergradient(
     # if (len(indices) == 0) and np.isinf(log10_beta) and np.isinf(log10_gamma):
     #     return chi2, np.zeros(1)
 
+    if derivatives_funs is None:
+        return chi2
+    
     if not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
         dchi2_dpars = derivatives_funs.dchi2_dpars(*my_args)
     else:
@@ -472,6 +476,16 @@ def compute_hypergradient(
         derivatives.dlambdas_dpars = np.concatenate(derivatives.dlambdas_dpars)
 
     gradient = put_together(dchi2_dpars, dchi2_dlambdas, derivatives)
+
+    if which_set == 'training':
+        n_obs = np.sum([np.sum(list(data_train.mol[s].n_experiments.values())) for s in data_train.mol.keys()])
+    elif which_set == 'valid_frames':
+        n_obs = np.sum([np.sum(list(data_valid.mol[s].n_experiments.values())) for s in data_valid.mol.keys()])
+    else:
+        n_obs = np.sum([np.sum(list(data_valid.mol[s].n_experiments_new.values())) for s in data_valid.mol.keys()])
+
+    chi2 = chi2/n_obs
+    gradient = gradient/n_obs
 
     return chi2, gradient
 
@@ -505,7 +519,7 @@ def mini_and_chi2_and_grad(
     which_set : str
         String among `'training'`, `'valid_frames'` or `'valid'` (see in `MDRefinement`).
 
-    derivatives_funs : class instance
+    derivatives_funs : `derivatives_funs_class` object
         Instance of the `derivatives_funs_class` class of derivatives functions computed by Jax Autodiff.
     """
 
