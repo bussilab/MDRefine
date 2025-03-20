@@ -370,7 +370,7 @@ def put_together(dchi2_dpars, dchi2_dlambdas, derivatives):
 
 def compute_hypergradient(
         pars_ff_fm, lambdas, log10_alpha, log10_beta, log10_gamma, data_train, regularization,
-        which_set, data_valid, derivatives_funs = None):
+        which_set, data_valid, derivatives_funs):
     """
     This is an internal tool of `mini_and_chi2_and_grad`, which employs previously defined functions (`compute_hyperderivatives`, `compute_chi2_tot`,
     `put_together`) to return selected chi2 and its gradient w.r.t hyperparameters.
@@ -477,15 +477,21 @@ def compute_hypergradient(
 
     gradient = put_together(dchi2_dpars, dchi2_dlambdas, derivatives)
 
-    if which_set == 'training':
-        n_obs = np.sum([np.sum(list(data_train.mol[s].n_experiments.values())) for s in data_train.mol.keys()])
-    elif which_set == 'valid_frames':
-        n_obs = np.sum([np.sum(list(data_valid.mol[s].n_experiments.values())) for s in data_valid.mol.keys()])
-    else:
-        n_obs = np.sum([np.sum(list(data_valid.mol[s].n_experiments_new.values())) for s in data_valid.mol.keys()])
+    ### to have reduced chi2
+    # n_obs = 0
 
-    chi2 = chi2/n_obs
-    gradient = gradient/n_obs
+    # if which_set == 'training':
+    #     for s in data_train.mol.keys():
+    #         n_obs += np.sum(np.array(list(data_train.mol[s].n_experiments.values())))
+    # elif which_set == 'valid_frames':
+    #     for s in data_valid.mol.keys():
+    #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments.values())))
+    # else:
+    #     for s in data_valid.mol.keys():
+    #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments_new.values())))
+
+    # chi2 = chi2/n_obs
+    # gradient = gradient/n_obs
 
     return chi2, gradient
 

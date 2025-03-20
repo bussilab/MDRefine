@@ -205,11 +205,14 @@ def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pa
         pars = np.concatenate((pars, pars_fm))
 
     chi2 = compute_hypergradient(pars, lambdas, log10_alpha, log10_beta, log10_gamma, data_test, regularization,
-        which_set, data_test)
+        which_set, data_test, None)
 
     if which_set == 'validation' or which_set == 'valid_obs':
-        n_obs_test = np.sum([np.sum(list(data_test.mol[s].n_experiments_new.values())) for s in data_test.mol.keys()])
-
+        
+        n_obs_test = 0
+        for s in data_test.mol.keys():
+            n_obs += np.sum(np.array(list(data_test.mol[s].n_experiments_new.values())))
+        
     chi2 = chi2/n_obs_test
 
     return chi2
