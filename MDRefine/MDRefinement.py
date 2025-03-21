@@ -204,6 +204,10 @@ def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pa
         log10_gamma = 0
         pars = np.concatenate((pars, pars_fm))
 
+    # # fake regularization, since we are interested in the chi2 only
+    # forward_model_regularization = lambda x, x0 : (x - x0)**2
+    # regularization = {'force_field_reg': 'KL divergence', 'forward_model_reg': forward_model_regularization}
+
     chi2 = compute_hypergradient(pars, lambdas, log10_alpha, log10_beta, log10_gamma, data_test, regularization,
         which_set, data_test, None)
 

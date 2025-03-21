@@ -456,6 +456,9 @@ def compute_hypergradient(
     if derivatives_funs is None:
         return chi2
     else:
+
+        assert derivatives
+        
         if not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
             dchi2_dpars = derivatives_funs.dchi2_dpars(*my_args)
         else:
