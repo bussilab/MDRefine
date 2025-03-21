@@ -211,7 +211,7 @@ def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pa
         
         n_obs_test = 0
         for s in data_test.mol.keys():
-            n_obs += np.sum(np.array(list(data_test.mol[s].n_experiments_new.values())))
+            n_obs_test += np.sum(np.array(list(data_test.mol[s].n_experiments_new.values())))
         
         chi2 = chi2/n_obs_test
 
