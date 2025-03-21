@@ -455,51 +455,51 @@ def compute_hypergradient(
 
     if derivatives_funs is None:
         return chi2
-    
-    if not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
-        dchi2_dpars = derivatives_funs.dchi2_dpars(*my_args)
     else:
-        dchi2_dpars = None
-    if not (np.isinf(log10_alpha) or len(indices) == 0):
-        dchi2_dlambdas = derivatives_funs.dchi2_dlambdas(*my_args)
-        dchi2_dlambdas = dchi2_dlambdas[indices]
-    else:
-        dchi2_dlambdas = None
+        if not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
+            dchi2_dpars = derivatives_funs.dchi2_dpars(*my_args)
+        else:
+            dchi2_dpars = None
+        if not (np.isinf(log10_alpha) or len(indices) == 0):
+            dchi2_dlambdas = derivatives_funs.dchi2_dlambdas(*my_args)
+            dchi2_dlambdas = dchi2_dlambdas[indices]
+        else:
+            dchi2_dlambdas = None
 
-    """ compute derivatives of chi2 w.r.t. hyper parameters (put together the previous two) """
+        """ compute derivatives of chi2 w.r.t. hyper parameters (put together the previous two) """
 
-    if hasattr(derivatives, 'dlambdas_dlogalpha') and not derivatives.dlambdas_dlogalpha == []:
-        # ks = [k for k in system_names if k in derivatives.dlambdas_dlogalpha.keys()]
-        derivatives.dlambdas_dlogalpha = np.concatenate(derivatives.dlambdas_dlogalpha)
-    if hasattr(derivatives, 'dlambdas_dpars') and not derivatives.dlambdas_dpars == []:
-        # ks = [k for k in system_names if k in derivatives.dlambdas_dpars.keys()]
-        derivatives.dlambdas_dpars = np.concatenate(derivatives.dlambdas_dpars)
+        if hasattr(derivatives, 'dlambdas_dlogalpha') and not derivatives.dlambdas_dlogalpha == []:
+            # ks = [k for k in system_names if k in derivatives.dlambdas_dlogalpha.keys()]
+            derivatives.dlambdas_dlogalpha = np.concatenate(derivatives.dlambdas_dlogalpha)
+        if hasattr(derivatives, 'dlambdas_dpars') and not derivatives.dlambdas_dpars == []:
+            # ks = [k for k in system_names if k in derivatives.dlambdas_dpars.keys()]
+            derivatives.dlambdas_dpars = np.concatenate(derivatives.dlambdas_dpars)
 
-    gradient = put_together(dchi2_dpars, dchi2_dlambdas, derivatives)
+        gradient = put_together(dchi2_dpars, dchi2_dlambdas, derivatives)
 
-    ### to have reduced chi2
-    # n_obs = 0
+        ### to have reduced chi2
+        # n_obs = 0
 
-    # if which_set == 'training':
-    #     for s in data_train.mol.keys():
-    #         n_obs += np.sum(np.array(list(data_train.mol[s].n_experiments.values())))
-    # elif which_set == 'valid_frames':
-    #     for s in data_valid.mol.keys():
-    #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments.values())))
-    # else:
-    #     for s in data_valid.mol.keys():
-    #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments_new.values())))
+        # if which_set == 'training':
+        #     for s in data_train.mol.keys():
+        #         n_obs += np.sum(np.array(list(data_train.mol[s].n_experiments.values())))
+        # elif which_set == 'valid_frames':
+        #     for s in data_valid.mol.keys():
+        #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments.values())))
+        # else:
+        #     for s in data_valid.mol.keys():
+        #         n_obs += np.sum(np.array(list(data_valid.mol[s].n_experiments_new.values())))
 
-    # chi2 = chi2/n_obs
+        # chi2 = chi2/n_obs
 
-    # if 'dchi2_dlogalpha' in vars(gradient).keys():
-    #     gradient.dchi2_dlogalpha = gradient.dchi2_dlogalpha/n_obs
-    # if 'dchi2_dlogbeta' in vars(gradient).keys():
-    #     gradient.dchi2_dlogbeta = gradient.dchi2_dlogbeta/n_obs
-    # if 'dchi2_dloggamma' in vars(gradient).keys():
-    #     gradient.dchi2_dloggamma = gradient.dchi2_dloggamma/n_obs
+        # if 'dchi2_dlogalpha' in vars(gradient).keys():
+        #     gradient.dchi2_dlogalpha = gradient.dchi2_dlogalpha/n_obs
+        # if 'dchi2_dlogbeta' in vars(gradient).keys():
+        #     gradient.dchi2_dlogbeta = gradient.dchi2_dlogbeta/n_obs
+        # if 'dchi2_dloggamma' in vars(gradient).keys():
+        #     gradient.dchi2_dloggamma = gradient.dchi2_dloggamma/n_obs
 
-    return chi2, gradient
+        return chi2, gradient
 
 
 # %% D5. mini_and_chi2_and_grad
