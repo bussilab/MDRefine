@@ -406,7 +406,7 @@ def compute_hypergradient(
     """
     system_names = data_train.properties.system_names
 
-    """ compute derivatives of optimal pars w.r.t. hyper parameters """
+    """ make lambdas_vec, that will be used to compute derivatives of optimal pars w.r.t. hyper parameters """
     if not np.isinf(log10_alpha):
         lambdas_vec = []
         refs = []
@@ -431,10 +431,6 @@ def compute_hypergradient(
     else:
         lambdas_vec = None
 
-    if derivatives_funs is not None:
-        # use non-normalized data and lambdas
-        derivatives = compute_hyperderivatives(
-            pars_ff_fm, lambdas_vec, data_train, regularization, derivatives_funs, log10_alpha, log10_beta, log10_gamma)
 
     """ compute chi2 and its derivatives w.r.t. pars"""
 
@@ -456,8 +452,9 @@ def compute_hypergradient(
     if derivatives_funs is None:
         return chi2
     else:
-
-        assert derivatives
+        # use non-normalized data and lambdas
+        derivatives = compute_hyperderivatives(
+            pars_ff_fm, lambdas_vec, data_train, regularization, derivatives_funs, log10_alpha, log10_beta, log10_gamma)
         
         if not (np.isinf(log10_beta) and np.isinf(log10_gamma)):
             dchi2_dpars = derivatives_funs.dchi2_dpars(*my_args)
