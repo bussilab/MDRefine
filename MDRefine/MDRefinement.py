@@ -194,7 +194,7 @@ def compute_chi2_test(data_test, regularization, pars_ff : np.ndarray = None, pa
 
     if pars_ff is None:
         log10_beta = np.inf
-        pars = []
+        pars = np.array([])
     else:
         log10_beta = 0
         pars = pars_ff
