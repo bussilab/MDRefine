@@ -108,31 +108,31 @@ jobs:
     - name: Test 3.13
       run: |
         source activate base
-        conda create -n py313 -c conda-forge -c local python=3.13 MDRefine pytest
+        conda create -n py313 -c conda-forge -c local python=3.13 MDRefine pytest jupyter
         source activate py313
         pytest -v
     - name: Test 3.12
       run: |
         source activate base
-        conda create -n py312 -c conda-forge -c local python=3.12 MDRefine pytest
+        conda create -n py312 -c conda-forge -c local python=3.12 MDRefine pytest jupyter
         source activate py312
         pytest -v
     - name: Test 3.11
       run: |
         source activate base
-        conda create -n py311 -c conda-forge -c local python=3.11 MDRefine pytest
+        conda create -n py311 -c conda-forge -c local python=3.11 MDRefine pytest jupyter
         source activate py311
         pytest -v
     - name: Test 3.10
       run: |
         source activate base
-        conda create -n py310 -c conda-forge -c local python=3.10 MDRefine pytest
+        conda create -n py310 -c conda-forge -c local python=3.10 MDRefine pytest jupyter
         source activate py310
         pytest -v
     - name: Test 3.9
       run: |
         source activate base
-        conda create -n py39 -c conda-forge -c local python=3.9 MDRefine pytest
+        conda create -n py39 -c conda-forge -c local python=3.9 MDRefine pytest jupyter
         source activate py39
         pytest -v
     - name: Deploy conda
