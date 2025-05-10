@@ -26,3 +26,5 @@ pip install MDRefine
 ```
 
 To load this environment in a new shell, type `source /path/to/env/bin/activate`.
+
+We suggest to run the tutorials in the `Examples` folder to have some meaningful insights on how to use `MDRefine` in its main application cases (refinements of the ensembles, the force field and/or the forward models).
