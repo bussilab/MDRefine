@@ -97,8 +97,8 @@ jobs:
       run: |
         curl -LO https://raw.githubusercontent.com/GiovanniBussi/conda-ci/master/conda-ci
         source ./conda-ci install
-        conda install -y -c conda-forge conda-build=3.26
-      # source ./conda-ci install-conda-build
+        source ./conda-ci install-conda-build
+      #  conda install -y -c conda-forge conda-build=3.26
     - name: Build
       run: |
         source activate base
