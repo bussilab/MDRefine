@@ -5,9 +5,11 @@ on:
   push:
     paths-ignore:
       - '**.md'
+      - '.github/workflows/**'
   pull_request:
     paths-ignore:
       - '**.md'
+      - '.github/workflows/**'
 
 jobs:
   python:
@@ -57,12 +59,34 @@ jobs:
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
       run: |
         pip install --upgrade pdoc3 jupyter nbconvert
+
+        # Patch broken APT mirror and update before install
+        sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu|' /etc/apt/sources.list
+        sudo apt-get update
+
+        # Install system packages
+        sudo apt-get install -y tree pandoc texlive-xetex
+
+        # Generate HTML docs
         pdoc3 -f --html -o doc/ MDRefine
+
+        # Render Jupyter examples
         ( cd Examples && ./render.sh )
-        mkdir doc/examples
+
+        # Copy and index HTML examples
+        mkdir -p doc/examples
         cp Examples/*html doc/examples/
-        ( sudo apt-get install tree && cd doc/examples && tree -H '.' -L 1 --noreport --charset utf-8 > index.html )
-        ( sudo apt-get install pandoc texlive-xetex && pdoc3 -f --pdf MDRefine > MDRefine.md && pandoc --metadata=title:"MDRefine Documentation" --from=markdown+abbreviations+tex_math_single_backslash --pdf-engine=xelatex --toc --toc-depth=4 --output=doc/MDRefine.pdf MDRefine.md )
+        ( cd doc/examples && tree -H '.' -L 1 --noreport --charset utf-8 > index.html )
+
+        # Generate PDF docs
+        pdoc3 -f --pdf MDRefine > MDRefine.md
+        pandoc --metadata=title:"MDRefine Documentation" \
+              --from=markdown+abbreviations+tex_math_single_backslash \
+              --pdf-engine=xelatex \
+              --toc --toc-depth=4 \
+              --output=doc/MDRefine.pdf \
+              MDRefine.md
+
     - name: Upload doc to artifact
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
       uses: actions/upload-artifact@v4
