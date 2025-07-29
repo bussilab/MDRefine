@@ -5,11 +5,11 @@ on:
   push:
     paths-ignore:
       - '**.md'
-      - '.github/workflows/**'
+      # - '.github/workflows/**'
   pull_request:
     paths-ignore:
       - '**.md'
-      - '.github/workflows/**'
+      # - '.github/workflows/**'
 
 jobs:
   python:
