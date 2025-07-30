@@ -8,7 +8,7 @@
 ---
 
 A package to perform refinement of MD simulation trajectories.  
-📚 **Documentation** is available at the [project page](https://bussilab.github.io/MDRefine/).
+📚 **Documentation** is available at the [project page](https://bussilab.github.io/doc-MDRefine/).
 
 ---
 
