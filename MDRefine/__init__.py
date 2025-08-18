@@ -18,6 +18,7 @@ from .loss_and_minimizer import minimizer, split_dataset, validation
 from .hyperminimizer import compute_hyperderivatives, compute_chi2_tot, put_together, compute_hypergradient
 from .hyperminimizer import mini_and_chi2_and_grad, hyper_function, hyper_minimizer
 from .MDRefinement import MDRefinement, unwrap_2dict, save_txt, unwrap_dict, compute_chi2_test
+from .bayesian import local_density, run_Metropolis, langevin_sampling, block_analysis, posterior_sampling
 
 # required packages:
 _required_ = [
