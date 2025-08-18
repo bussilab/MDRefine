@@ -7,15 +7,15 @@ on:
       - '**.md'
       - 'MDRefine/bayesian.py'
       - 'MDRefine/__init__.py'
-      - 'Examples/Tutorial_sampling.py'
-      - '.github/workflows/**'
+      # - 'Examples/Tutorial_sampling.py'
+      # - '.github/workflows/**'
   pull_request:
     paths-ignore:
       - '**.md'
       - 'MDRefine/bayesian.py'
       - 'MDRefine/__init__.py'
-      - 'Examples/Tutorial_sampling.py'
-      - '.github/workflows/**'
+      # - 'Examples/Tutorial_sampling.py'
+      # - '.github/workflows/**'
 
 jobs:
   python:
