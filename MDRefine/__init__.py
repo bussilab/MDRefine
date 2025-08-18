@@ -26,7 +26,8 @@ _required_ = [
     'pandas',
     'jax',
     'jaxlib',
-    'joblib'
+    'joblib',
+    'tqdm'
 ]
 
 
