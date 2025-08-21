@@ -5,14 +5,14 @@ on:
   push:
     paths-ignore:
       - '**.md'
-      # - 'MDRefine/bayesian.py'
+      - 'MDRefine/bayesian.py'
       - 'MDRefine/__init__.py'
       # - 'Examples/Tutorial_sampling.ipynb'
       # - '.github/workflows/**'
   pull_request:
     paths-ignore:
       - '**.md'
-      # - 'MDRefine/bayesian.py'
+      - 'MDRefine/bayesian.py'
       - 'MDRefine/__init__.py'
       # - 'Examples/Tutorial_sampling.ipynb'
       # - '.github/workflows/**'
