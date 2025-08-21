@@ -324,7 +324,7 @@ class Saving_function():
         self.path = path
         self.i_save = i_save
 
-    def __call__(self, av_acceptance, traj, energy, qs):
+    def __call__(self, av_acceptance, traj, energy, qs = None):
 
         self.values['av. acceptance'] = av_acceptance
         self.values['time'] = time.time() - self.t0
@@ -336,15 +336,17 @@ class Saving_function():
         np.save(self.path + '/energy', energy)
 
         # if type(sampling[2]) is not float:  # if float, it is the average acceptance
-        np.save(self.path + '/quantities', qs)
+        if qs is not None:
+            np.save(self.path + '/quantities', qs)
 
 class Result_run_Metropolis(Result):
     '''Result of a `run_Metropolis` calculation.'''
-    def __init__(self, traj, ene, av_acceptance, quantities):
+    def __init__(self, traj, ene, av_acceptance, quantities = None):
         self.traj = traj
         self.ene = ene
         self.av_acceptance = av_acceptance
-        self.quantities = quantities
+        if quantities is not None:
+            self.quantities = quantities
 
 def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
     n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True, saving = None):
@@ -432,7 +434,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
 
         # proposal = {'fun': fun_proposal, 'args': ([proposal])}
 
-        def proposal(x0):
+        def proposal_fun(x0):
             x_new = x0 + proposal_stride*rng.normal(size=len(x0))
             return x_new
     
@@ -443,7 +445,11 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
             step_width = proposal[1]
         else: step_width = 1.
 
-        proposal = Proposal_onebyone(step_width=step_width, rng=rng)
+        proposal_fun = Proposal_onebyone(step_width=step_width, rng=rng)
+
+    else:
+        assert callable(proposal), 'error on proposal'
+        proposal_fun = proposal
 
     x0_ = +x0  # in order TO AVOID OVERWRITING!
     
@@ -476,7 +482,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
 
     for i_step in counter:
 
-        x_try = +proposal(x0_)  # proposal['fun'](x0_, *proposal['args'])
+        x_try = +proposal_fun(x0_)  # proposal['fun'](x0_, *proposal['args'])
 
         out = energy_function(x_try)  # energy_function['fun'](x_try, *energy_function['args'])
         u_try = out[0]
@@ -508,8 +514,11 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         if (np.mod(i_step, i_save) == 0) or (i_step == (n_steps - 1)):
             av_acceptance = sum_alpha/(i_step + 1)
             if saving is not None:
-                if quantities[0] is not None: qs = np.array(quantities)
-                saving(av_acceptance, np.array(traj), np.array(ene), qs)
+                if quantities[0] is not None:
+                    qs = np.array(quantities)
+                    saving(av_acceptance, np.array(traj), np.array(ene), qs)
+                else:
+                    saving(av_acceptance, np.array(traj), np.array(ene))
     
     if quantities[0] is None: obj_result = Result_run_Metropolis(np.array(traj), np.array(ene), av_acceptance)
     else: obj_result = Result_run_Metropolis(np.array(traj), np.array(ene), av_acceptance, np.array(quantities))
@@ -638,7 +647,8 @@ def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_mea
         qs = MyQuantities(energy, list(out.D_KL_alpha.values()), unwrap_2dict(out.av_g)[0])
         # qs = [energy] + list(out.D_KL_alpha.values()) + unwrap_2dict(out.av_g)[0]
     
-    elif which_refinement == 'force field':
+    else:
+        assert which_refinement == 'force field', 'error on which_refinement: only ensemble or force field are possible'
         # here alpha is infinite so you could keep `if_save=False` and evaluate `energy = out.loss`
         # (no issue with the Gamma function); put anyway `if_save=True` to get also the average observables values
         out = loss_function(x, data, regularization=regularization, beta=beta, if_save=True)
@@ -671,7 +681,9 @@ def posterior_sampling(starting_point, data, regularization = None, alpha : floa
     
     a_fin, b_fin = assert_one_finite_one_infinite(alpha, beta)
     if a_fin : which_refinement = 'ensemble'
-    elif b_fin: which_refinement = 'force field'
+    else:
+        assert b_fin, 'error on hyperparameters'
+        which_refinement = 'force field'
 
     energy_function = lambda x0 : energy_fun_mute(x0, data, regularization, alpha, beta, which_measure.value, which_refinement)
     

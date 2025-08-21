@@ -27,6 +27,7 @@ _required_ = [
     'jax',
     'jaxlib',
     'joblib',
+    'tqdm'
 ]
 
 
