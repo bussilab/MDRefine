@@ -348,7 +348,7 @@ class Result_run_Metropolis(Result):
         if quantities is not None:
             self.quantities = quantities
 
-def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
+def run_Metropolis(x0, proposal, energy_function, quantity_function = None, *, kT = 1.,
     n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True, saving = None):
     """
     This function runs a Metropolis sampling algorithm.
@@ -379,7 +379,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         Function used to compute some quantities of interest on the initial configuration.
         If `energy_function` has more than one output, `quantity_function` is ignored and the quantities
         of interest are the 2nd output of `energy_function` (in this way, they are computed together with
-        the energy).
+        the energy, avoiding the need for running twice the same function).
         Notice that `quantity_function` does not support other input parameters beyond the configuration;
         otherwise, you can use `energy_function`.
 
