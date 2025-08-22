@@ -673,8 +673,8 @@ def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_mea
     """
     This is the energy function defined for running the usual sampling algorithms, corresponding to -log of the
     posterior distribution (a part from a normalization factor and with the optional inclusion of the entropic
-    contribution, as prescribed by `which_measure`). Depending on `which_refinement`, it corresponds either to
-    ensemble refinement or force-field fitting.
+    contribution, as prescribed by `which_measure`). Depending on which hyperparameter is infinite (`alpha` or
+    `beta`), it corresponds either to ensemble refinement or force-field fitting.
 
     Parameters
     -----------
@@ -794,12 +794,8 @@ def posterior_sampling(starting_point, data, regularization = None, alpha : floa
     assert not ((not np.isinf(beta)) and (regularization is None)), 'regularization is None even if beta is not infinite'
     
     a_fin, b_fin = _assert_one_finite_one_infinite(alpha, beta)
-    if a_fin : which_refinement = 'ensemble'
-    else:
-        assert b_fin, 'error on hyperparameters'
-        which_refinement = 'force field'
 
-    energy_function = lambda x0 : _energy_fun_mute(x0, data, regularization, alpha, beta, which_measure.value, which_refinement)
+    energy_function = lambda x0 : _energy_fun_mute(x0, data, regularization, alpha, beta, which_measure.value)
     
     if proposal_move == 'default': proposal_move = 0.1
     # then, `run_Metropolis` will take a random move given by a normal distribution of given std
