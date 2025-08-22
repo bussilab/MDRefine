@@ -294,7 +294,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
 class Proposal_onebyone:
     """ class for updating one coordinate per time (it includes the attribute `index`
         to take in memory which coordinate to update) """
-    def __init__(self, step_width = 1., index = 0, rng=None):
+    def __init__(self, step_width = 1., index = 0, rng = None):
         self.step_width = step_width
         self.index = index
         
@@ -673,7 +673,7 @@ def posterior_sampling(starting_point, data, regularization = None, alpha : floa
                        which_measure = Which_measure, proposal_move = 'default', n_steps_MC : int = int(1e4),
                        seed : int = 1):
     """
-    Function for sampling from the posterior distribution $ e^{-\mathcal{L(P)}} $ with specified uninformative prior
+    Function for sampling from the posterior distribution $ e^{-L(P)} $ with specified uninformative prior
     both in the case of ensemble refinement or force-field refinement
     """
     
