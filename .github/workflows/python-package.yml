@@ -7,6 +7,7 @@ on:
       - '**.md'
       - 'MDRefine/bayesian.py'
       - 'MDRefine/__init__.py'
+
       # - 'Examples/Tutorial_sampling.ipynb'
       # - '.github/workflows/**'
   pull_request:
@@ -14,6 +15,7 @@ on:
       - '**.md'
       - 'MDRefine/bayesian.py'
       - 'MDRefine/__init__.py'
+      
       # - 'Examples/Tutorial_sampling.ipynb'
       # - '.github/workflows/**'
 
