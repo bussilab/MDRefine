@@ -1,8 +1,6 @@
 """
-Sample a hyper-ensemble of (canonical) ensembles by using a suitable uninformative prior,
-namely, a prescription on how to count the ensembles (to measure distances between ensembles).
-
-Basic functions.
+Tools for the sampling of the posterior distribution, defined over a set of ensembles, by using a suitable
+uninformative prior (namely, a prescription on the counting of the ensembles).
 """
 
 import numpy as np
@@ -23,7 +21,8 @@ import sys, os
 from contextlib import contextmanager
 
 @contextmanager
-def suppress_stdout():
+def _suppress_stdout():
+    """Internal method to avoid internal printing."""
     with open(os.devnull, 'w') as devnull:
         old_stdout = sys.stdout
         sys.stdout = devnull
@@ -120,12 +119,18 @@ class Result(dict):
 from enum import Enum
 
 class Which_measure(Enum):
+    """ Class with the strings for `which_measure` variable. """
     FLAT = 'uniform'
     JEFFREYS = 'jeffreys'
     AVERAGE = 'average'
     DIRICHLET = 'dirichlet'
 
-def assert_one_finite_one_infinite(a, b):
+def _assert_one_finite_one_infinite(a, b):
+    """
+    Basic routine to assert if either `a` or `b` is a finite float value (and the other is infinite or None).
+    If true, it returns the Boolean variables `a_fin` and `b_fin` (`a_fin = True` if `a` is finite,
+    `False` otherwise; analogouse for `b_fin`)
+    """
     # Treat None as infinite
     a_inf = (a is None) or (a is not None and np.isinf(a))
     b_inf = (b is None) or (b is not None and np.isinf(b))
@@ -140,8 +145,9 @@ def assert_one_finite_one_infinite(a, b):
 
 #%% compute the local density of ensembles
 
-def make_sym_pos_def(cov, epsilon=1e-8):
-    """ Make `cov` symmetric and positive definite
+def _make_sym_pos_def(cov, epsilon=1e-8):
+    """
+    Internal tool to make `cov` symmetric and positive definite
     (`cov` should be so, unless linearly-dependent observables; if it is not, this is due to round-off errors).
     """
     cov = (cov + cov.T)/2
@@ -151,18 +157,18 @@ def make_sym_pos_def(cov, epsilon=1e-8):
 
 def local_density(variab, weights, which_measure = 'jeffreys'):
     """
-    This function computes the local density of ensembles in the cases of Ensemble Refinement or Force-Field Fitting.
+    This function computes the local density of ensembles in the cases of ensemble refinement or force-field fitting.
     
-    This density can be defined through the Jeffreys ``uninformative" prior (`which_measure = 'jeffreys'`):
+    This density can be defined through the Jeffreys "uninformative" prior (`which_measure = 'jeffreys'`):
     in these two cases, the Jeffreys prior is given by the square root of the determinant of the covariance matrix
     (of the observables in Ensemble Refinement or the generalized forces in Force-Field Fitting,
     where the generalized forces are the derivatives of the force-field correction with respect to the fitting coefficients).
     
     It includes also the possibility for the computation of the local density of ensembles with plain Dirichlet
-    if `which_measure == 'dirichlet'`, or with the variation of the average observables if 
-    `which_measure == 'average'`.
+    if `which_measure = 'dirichlet'`, or with the variation of the average observables if 
+    `which_measure = 'average'`.
 
-    Since we are always dealing with a real-value, symmetric and semi-positive definite matrix,
+    Since we are anyway dealing with a real-value, symmetric and semi-positive definite matrix,
     its determinant is computed through the Cholesky decomposition (which is faster for big matrices):
     `triang` is such that `metric = triang * triang.T`, so `sqrt(det metric) = det(triang)`.
 
@@ -191,6 +197,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
     which_measure: str
         String variable, chosen among: `jeffreys`, `dirichlet` or `average`, indicating the prescription
         for the local density of ensembles (Jeffreys prior, plain Dirichlet, average observables).
+
     -----------
 
     Returns
@@ -292,7 +299,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
 #%% proposal move
 
 class Proposal_onebyone:
-    """ class for updating one coordinate per time (it includes the attribute `index`
+    """ Class for a proposal move which updates one coordinate per time (it includes the attribute `index`
         to take in memory which coordinate to update) """
     def __init__(self, step_width = 1., index = 0, rng = None):
         self.step_width = step_width
@@ -343,10 +350,14 @@ class Result_run_Metropolis(Result):
     '''Result of a `run_Metropolis` calculation.'''
     def __init__(self, traj, ene, av_acceptance, quantities = None):
         self.traj = traj
+        """ Trajectory """
         self.ene = ene
+        """ Energy """
         self.av_acceptance = av_acceptance
+        """ Float value for the average acceptance """
         if quantities is not None:
             self.quantities = quantities
+            """ Computed quantities """
 
 def run_Metropolis(x0, proposal, energy_function, quantity_function = None, *, kT = 1.,
     n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True, saving = None):
@@ -395,24 +406,21 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = None, *, k
     i_print : int
         How many steps to print an indicator of the running algorithm (current n. of steps).
 
-    saving : object of class `Saving_function`
+    if_tqdm : Bool
+        Boolean variable, if `True` then use `tqdm`.
+
+    saving : None or float or Saving_function
+        An instance of the `Saving_function` class, used to save the results during Metropolis run (or in the end).
         If `saving is None` do not save, if it is `'yes'` use default object of class `Saving_function`.
-        To save the results during the Metropolis run (or in the end).
+
     -----------
 
     Returns
     -----------
-    traj : numpy.ndarray
-        Numpy array with the trajectory.
 
-    ene : numpy.ndarray
-        Numpy array with the energy.
-
-    av_alpha : float
-        Average acceptance.
-
-    quantities : numpy.ndarray, optional
-        Numpy array with the quantities of interest (if any).
+    obj_result : Result_run_Metropolis
+        An instance of the `Result_run_Metropolis` class with trajectory, energy, average acceptance
+        and computed quantities.
     """
 
     rng = np.random.default_rng(seed)
@@ -530,10 +538,11 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = None, *, k
 def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : float = 1e-1,
     dt : float = 5e-3, kT : float = 1., seed : int = 1, if_tqdm: bool = True):
     """
-    Perform a Langevin sampling of `energy_fun` at temperature `kT` (with Euler-Maruyama scheme).
+    A function to perform a Langevin sampling of `energy_fun` at temperature `kT` (with the Euler-Maruyama scheme).
     
     Parameters
     ----------
+
     energy_fun : function
         The energy function, written with `jax.numpy` in order to do automatic differentiation
         through `jax.grad` (this requires `energy_fun` to return a scalar value and not an array,
@@ -555,8 +564,26 @@ def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : floa
     kT : float
         The temperature.
     
-    Seed : int
+    seed : int
         Integer value for the seed.
+
+    if_tqdm : Bool
+        Boolean variable, if `True` use `tqdm` (default choice).
+
+    Return
+    ----------
+
+    traj : np.ndarray
+        Numpy array with the trajectory.
+
+    ene : np.ndarray
+        Numpy array with the energies.
+
+    force_list : list
+        List with the forces.
+
+    check : dict
+        Dictionary with `'dif'` for `np.ediff1d(traj)`, together with its mean and standard deviation.
     """
 
     jax_energy_fun = lambda x : jnp.sum(energy_fun(x))  # to use jax.grad rather than jax.jacfwd
@@ -600,18 +627,28 @@ def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : floa
     traj = np.array(traj)
     if len(x) == 1: traj = traj[:, 0]
 
-    return traj, np.array(ene_list), force_list, check
+    ene = np.array(ene_list)
+
+    return traj, ene, force_list, check
 
 #%% Metropolis algorithm (specific for sampling the posterior of ER or FFR)
 
 class MyQuantities():
+    """Class with the evaluated quantities for each step of the MCMC sampling, beyond energy and trajectory."""
     def __init__(self, loss, reg, avs):
         self.loss = loss
+        """`float` with the loss value (excluding the entropic contribution)."""
         self.reg = reg
+        """`float` with the regularization value."""
         self.avs = avs
+        """`float` with the average values."""
 
     @classmethod
     def merge(cls, instances):
+        """
+        Function to merge multiple instances of `MyQuantities` in a single one
+        (to be run in the end of the MCMC sampling to collect quantities).
+        """
         # get all attribute names
         attrs = vars(instances[0]).keys()
 
@@ -624,19 +661,59 @@ class MyQuantities():
             merged[attr] = arrays
             # try: merged[attr] = np.concatenate(arrays, axis=0)  # join arrays
             # except: merged[attr] = np.stack(arrays)  # for 0-dim arrays
-        return ResultMyQuantities(cls(**merged))
+        return Result_MyQuantities(cls(**merged))
         # cls(**merged) requires attributes of MyQuantities to be equal to the input variables __init__(self, ...)
 
-class ResultMyQuantities(Result):
+class Result_MyQuantities(Result):
+    """Class with the merged quantities from `MyQuantities` (`MyQuantities.merge`)."""
     def __init__(self, my_quantities_concat : MyQuantities):
         super().__init__(**my_quantities_concat.__dict__)
 
-def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_measure = 'uniform', which_refinement = 'ensemble'):
-    
+def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_measure = 'uniform'):
+    """
+    This is the energy function defined for running the usual sampling algorithms, corresponding to -log of the
+    posterior distribution (a part from a normalization factor and with the optional inclusion of the entropic
+    contribution, as prescribed by `which_measure`). Depending on `which_refinement`, it corresponds either to
+    ensemble refinement or force-field fitting.
+
+    Parameters
+    -----------
+
+    x : numpy.ndarray
+        Numpy array with the lambda coefficients (for ensemble refinement) or the force-field correction coefficients
+        (for force-field refinement), in the same order required by `loss_and_minimizer.loss_function`.
+
+    data : data_loading.my_data
+        An instance of the class `data_loading.my_data` class, with all the data for the molecules of interest.
+
+    regularization : dict
+        Dictionary for the regularization (`None` for ensemble refinement), as described for `MDRefinement`.
+
+    alpha, beta : float
+        Values of the hyperparameters `alpha` (ensemble refinement) or `beta` (force-field fitting):
+        either one of them must be infinite (the sampling has been implemented either for ensemble
+        or force-field refinement).
+
+    which_measure : dict
+        Dictionary indicating the measure used for sampling the posterior
+        (choose among: `'uniform'`, `'jeffreys'`, `'average'`, `'dirichlet'`).
+
+    Result
+    -----------
+
+    energy : float
+        Float value for the energy used in the sampling, as defined by the input variables.
+
+    qs : MyQuantities
+        An instance of the `'MyQuantities` class containing loss, average observables and regularization values.
+    """
+
     # vars(out).keys() = ['loss', 'loss_explicit', 'D_KL_alpha', 'abs_difference', 'av_g', 'chi2',
     #    'logZ_new', 'weights_new'] """
 
-    if which_refinement == 'ensemble':
+    a_fin, b_fin = _assert_one_finite_one_infinite(alpha, beta)
+
+    if a_fin:
         # `if_save = True` and the correct value is `out.loss_explicit`, otherwise you are wrong because
         # it would compute the value given by the Gamma function rather than the loss itself
         # (these two values are equal only in the optimal solution!!)
@@ -648,7 +725,6 @@ def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_mea
         # qs = [energy] + list(out.D_KL_alpha.values()) + unwrap_2dict(out.av_g)[0]
     
     else:
-        assert which_refinement == 'force field', 'error on which_refinement: only ensemble or force field are possible'
         # here alpha is infinite so you could keep `if_save=False` and evaluate `energy = out.loss`
         # (no issue with the Gamma function); put anyway `if_save=True` to get also the average observables values
         out = loss_function(x, data, regularization=regularization, beta=beta, if_save=True)
@@ -665,27 +741,65 @@ def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_mea
     
     return energy, qs
 
-def energy_fun_mute(x0, data, regularization, alpha, beta, which_measure, which_refinement):
+def _energy_fun_mute(x0, data, regularization, alpha, beta, which_measure):
+    "The same as `energy_fun` but without internal printing."
     with suppress_stdout():
-        return energy_fun(x0, data, regularization, alpha, beta, which_measure, which_refinement)
+        return energy_fun(x0, data, regularization, alpha, beta, which_measure)
 
 def posterior_sampling(starting_point, data, regularization = None, alpha : float = np.inf, beta : float = np.inf,
                        which_measure = Which_measure, proposal_move = 'default', n_steps_MC : int = int(1e4),
                        seed : int = 1):
     """
-    Function for sampling from the posterior distribution $ e^{-L(P)} $ with specified uninformative prior
-    both in the case of ensemble refinement or force-field refinement
+    Main function of the `bayesian` module, it is the algorithm that samples from the posterior distribution
+    exp(-L(P)) with the specified uninformative prior, either in the case of ensemble refinement or force-field refinement.
+
+    Parameters
+    -----------
+
+    starting_point : 
+
+    data : data_loading.my_data
+        An instance of the class `data_loading.my_data` class, with all the data for the molecules of interest.
+
+    regularization : dict
+        Dictionary for the regularization to the force-field correction.
+
+    alpha, beta : float
+        Float values for the hyperparameters (either one of them must be infinite or None).
+    
+    which_measure : Which_measure
+        An instance of the `Which_measure` class, to specify the entropic measure used in the sampling
+        (chosen among `FLAT = 'uniform'`, `JEFFREYS = 'jeffreys'`, `AVERAGE = 'average'`, `DIRICHLET = 'dirichlet'`).
+
+    proposal_move : str or function or float or tuple
+        Variable used to specify the move employed in the Metropolis algorithm, as indicated in `run_Metropolis`;
+        if it is `'default'`, then a Gaussian move is used with standard deviation `proposal_move = 0.1`.
+
+    n_steps_MC : int
+        Integer for the number of steps in the Metropolis algorithm.
+
+    seed : int
+        Integer for the random state (seed) used in the Metropolis algorithm.
+
+    -----------
+    
+    Returns
+    -----------
+    
+    sampling : Result_MyQuantities
+        An instance of the `Result_MyQuantities` class, which merges the quantities returned by each step
+        of the MCMC sampling (as indicated in `MyQuantities`).
     """
     
     assert not ((not np.isinf(beta)) and (regularization is None)), 'regularization is None even if beta is not infinite'
     
-    a_fin, b_fin = assert_one_finite_one_infinite(alpha, beta)
+    a_fin, b_fin = _assert_one_finite_one_infinite(alpha, beta)
     if a_fin : which_refinement = 'ensemble'
     else:
         assert b_fin, 'error on hyperparameters'
         which_refinement = 'force field'
 
-    energy_function = lambda x0 : energy_fun_mute(x0, data, regularization, alpha, beta, which_measure.value, which_refinement)
+    energy_function = lambda x0 : _energy_fun_mute(x0, data, regularization, alpha, beta, which_measure.value, which_refinement)
     
     if proposal_move == 'default': proposal_move = 0.1
     # then, `run_Metropolis` will take a random move given by a normal distribution of given std
@@ -699,26 +813,32 @@ def posterior_sampling(starting_point, data, regularization = None, alpha : floa
 #%% block analysis
 
 class Block_analysis_Result(Result):
-    """Result of a `bussilab.maxent.maxent` calculation."""
+    """Result of a `block_analysis` calculation."""
     def __init__(self, mean : float, std : float, opt_epsilon : float, epsilons : np.ndarray,
             epsilons_smooth : np.ndarray, n_blocks : np.ndarray, size_blocks : np.ndarray):
-
-        # super().__init__()
+        super().__init__()
         self.mean = mean
-        """`float` with the mean value."""
+        """`float` with the mean value of the time series."""
         self.std = std
-        """`float` with the standard deviation."""
+        """`float` with the standard deviation of the time series (assuming independent frames)."""
         self.opt_epsilon = opt_epsilon
+        """`float` with the optimal estimate of the associated error `epsilon`."""
         self.epsilons = epsilons
+        """`list` with the associated error `epsilon` for each block size."""
         self.epsilons_smooth = epsilons_smooth
+        """`list` with the associated error `epsilon` for each block size (smooth time series)."""
         self.n_blocks = n_blocks
+        """`list` with the number of blocks in the time series, for each analysed block size."""
         self.size_blocks = size_blocks
+        """`list` with the block sizes initially defined."""
 
 def block_analysis(x, size_blocks = None, n_conv = 50):
     """
     This function performs the block analysis of a (correlated) time series `x`, cycling over different block sizes.
     It includes also a numerical search of the optimal estimated error `epsilon`, by smoothing `epsilon` and searching
     for the first time it decreases, which should correspond to a plateau region.
+
+    It returns an instance of the `Block_analysis_Result` class.
 
     Parameters
     -----------
@@ -734,31 +854,6 @@ def block_analysis(x, size_blocks = None, n_conv = 50):
     n_conv : int
         Length (as number of elements in the block-size list) of the kernel used to smooth the epsilon function
         (estimated error vs. block size) in order to search for the optimal epsilon, corresponding to the plateau.
-    -----------
-
-    Returns
-    -----------
-    
-    mean : float
-        Mean value of the time series.
-
-    std : float
-        Standard deviation of the time series (assuming independent frames).
-
-    opt_epsilon : float
-        Optimal estimate of the associated error epsilon.
-
-    epsilon : list
-        List with the associated error `epsilon` for each block size.
-
-    smooth : numpy.ndarray
-        Smoothing of the `epsilon` function.
-
-    n_blocks : list
-        List with the number of blocks in the time series, for each analysed block size.
-
-    size_blocks : list
-        List with the block sizes initially defined.
     """
 
     size = len(x)
