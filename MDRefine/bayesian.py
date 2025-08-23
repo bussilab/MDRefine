@@ -15,7 +15,7 @@ from .MDRefinement import unwrap_2dict
 import re
 from typing import List
 
-# to avoid verbose result use `suppress_stdout`
+# to avoid verbose result use `_suppress_stdout`
 
 import sys, os
 from contextlib import contextmanager
@@ -233,7 +233,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
         except:
             # density = np.sqrt(np.linalg.det(cov))
 
-            cov = make_sym_pos_def(cov)
+            cov = _make_sym_pos_def(cov)
             triang = np.linalg.cholesky(cov)
             density = np.prod(np.diag(triang))
 
@@ -277,7 +277,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
         met = np.einsum('i,tj,t->ij', av_values, values, weights**2)
         metric -= met + met.T
 
-        # metric = make_sym_pos_def(metric)
+        # metric = _make_sym_pos_def(metric)
 
         # assert np.linalg.cholesky(metric), metric
         # if not (np.isnan(metric).any() or np.isnan(metric).any()) and (np.all(np.linalg.eigvalsh(metric) > 0)):
@@ -285,7 +285,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
             triang = np.linalg.cholesky(metric)
             density = np.prod(np.diag(triang))
         except:  # np.linalg.LinAlgError as e:  # it may happen: `Matrix is not positive definite` (zero due to round-off errors)
-            metric = make_sym_pos_def(metric, epsilon=1e-8)
+            metric = _make_sym_pos_def(metric, epsilon=1e-8)
             triang = np.linalg.cholesky(metric)
             density = np.prod(np.diag(triang))
 
@@ -743,7 +743,7 @@ def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_mea
 
 def _energy_fun_mute(x0, data, regularization, alpha, beta, which_measure):
     "The same as `energy_fun` but without internal printing."
-    with suppress_stdout():
+    with _suppress_stdout():
         return energy_fun(x0, data, regularization, alpha, beta, which_measure)
 
 def posterior_sampling(starting_point, data, regularization = None, alpha : float = np.inf, beta : float = np.inf,
