@@ -570,7 +570,7 @@ def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : floa
     if_tqdm : Bool
         Boolean variable, if `True` use `tqdm` (default choice).
 
-    Return
+    Returns
     ----------
 
     traj : np.ndarray
@@ -698,7 +698,7 @@ def energy_fun(x, data, regularization, alpha = np.inf, beta = np.inf, which_mea
         Dictionary indicating the measure used for sampling the posterior
         (choose among: `'uniform'`, `'jeffreys'`, `'average'`, `'dirichlet'`).
 
-    Result
+    Returns
     -----------
 
     energy : float
