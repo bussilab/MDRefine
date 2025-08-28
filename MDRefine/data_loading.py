@@ -83,6 +83,17 @@ def check_and_skip(data, *, stride=1):
         my_data.n_experiments = {}
 
         if hasattr(my_data, 'gexp'):
+
+            """ if no value for sigma_exp is provided, this is by default assumed to be 10^-6 times
+            the standard deviation of the corresponding time series """
+            for name in my_data.gexp.keys():
+                if (my_data.gexp[name].ndim == 1):
+                    my_data.gexp[name] = my_data.gexp[name].reshape(-1, 1)
+                
+                if (my_data.gexp[name].ndim == 2 and my_data.gexp[name].shape[1] == 1):
+                    std_vec = 1e-6*np.std(my_data.g[name], axis=0).reshape(-1, 1)
+                    my_data.gexp[name] = np.hstack([my_data.gexp[name], std_vec])
+
             my_data.n_experiments = {}
             for kind in my_data.gexp.keys():
                 my_data.n_experiments[kind] = np.shape(my_data.gexp[kind])[0]
